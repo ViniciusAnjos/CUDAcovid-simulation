@@ -1,0 +1,90 @@
+void NaturalDeathfunc()
+{
+	int i;
+
+	ProbNaturalDeath[0] = 0.123582605937503;
+	ProbNaturalDeath[1] = 0.008412659481117;
+	ProbNaturalDeath[2] = 0.0053758830325;
+	ProbNaturalDeath[3] = 0.004071349564963;
+	ProbNaturalDeath[4] = 0.003328785199437;
+	ProbNaturalDeath[5] = 0.002851304993677;
+	ProbNaturalDeath[6] = 0.002527966451363;
+	ProbNaturalDeath[7] = 0.002310496945863;
+	ProbNaturalDeath[8] = 0.002178859462886;
+	ProbNaturalDeath[9] = 0.002129830660268;
+	ProbNaturalDeath[10] = 0.002173822944408;
+	ProbNaturalDeath[11] = 0.002335864060389;
+	ProbNaturalDeath[12] = 0.002659754298987;
+	ProbNaturalDeath[13] = 0.00321570391484;
+	ProbNaturalDeath[14] = 0.004112609101089;
+	ProbNaturalDeath[15] = 0.006950173136317;
+	ProbNaturalDeath[16] = 0.008664660102385;
+	ProbNaturalDeath[17] = 0.010186902957357;
+	ProbNaturalDeath[18] = 0.011378739645498;
+	ProbNaturalDeath[19] = 0.01229421773494;
+	ProbNaturalDeath[20] = 0.013200885964887;
+	ProbNaturalDeath[21] = 0.014099674432299;
+	ProbNaturalDeath[22] = 0.014711957238925;
+	ProbNaturalDeath[23] = 0.014968691990926;
+	ProbNaturalDeath[24] = 0.014967172185325;
+	ProbNaturalDeath[25] = 0.014845031894506;
+	ProbNaturalDeath[26] = 0.014767082029733;
+	ProbNaturalDeath[27] = 0.01480839152999;
+	ProbNaturalDeath[28] = 0.015055101638628;
+	ProbNaturalDeath[29] = 0.015468505190105;
+	ProbNaturalDeath[30] = 0.015944306819536;
+	ProbNaturalDeath[31] = 0.016421043709446;
+	ProbNaturalDeath[32] = 0.016942117099386;
+	ProbNaturalDeath[33] = 0.017501078390588;
+	ProbNaturalDeath[34] = 0.018119607730054;
+	ProbNaturalDeath[35] = 0.018840382831522;
+	ProbNaturalDeath[36] = 0.01968584321183;
+	ProbNaturalDeath[37] = 0.020648697917729;
+	ProbNaturalDeath[38] = 0.02174025422673;
+	ProbNaturalDeath[39] = 0.022977134791163;
+	ProbNaturalDeath[40] = 0.024351327962323;
+	ProbNaturalDeath[41] = 0.025902332950567;
+	ProbNaturalDeath[42] = 0.02769484883125;
+	ProbNaturalDeath[43] = 0.029763807831847;
+	ProbNaturalDeath[44] = 0.032092257416785;
+	ProbNaturalDeath[45] = 0.03464417578323;
+	ProbNaturalDeath[46] = 0.037387253883753;
+	ProbNaturalDeath[47] = 0.040325116908918;
+	ProbNaturalDeath[48] = 0.043450465802503;
+	ProbNaturalDeath[49] = 0.046783769250641;
+	ProbNaturalDeath[50] = 0.050379305647723;
+	ProbNaturalDeath[51] = 0.054250708597469;
+	ProbNaturalDeath[52] = 0.058370165793835;
+	ProbNaturalDeath[53] = 0.062743356857589;
+	ProbNaturalDeath[54] = 0.067405733722802;
+	ProbNaturalDeath[55] = 0.072471872691788;
+	ProbNaturalDeath[56] = 0.077940570749002;
+	ProbNaturalDeath[57] = 0.083722432777535;
+	ProbNaturalDeath[58] = 0.089812939592727;
+	ProbNaturalDeath[59] = 0.096320545551754;
+	ProbNaturalDeath[60] = 0.103374758030823;
+	ProbNaturalDeath[61] = 0.111153832260191;
+	ProbNaturalDeath[62] = 0.119799418763301;
+	ProbNaturalDeath[63] = 0.129458206950975;
+	ProbNaturalDeath[64] = 0.140179867078005;
+	ProbNaturalDeath[65] = 0.151763459015659;
+	ProbNaturalDeath[66] = 0.164404993288517;
+	ProbNaturalDeath[67] = 0.178637575194583;
+	ProbNaturalDeath[68] = 0.194752162647952;
+	ProbNaturalDeath[69] = 0.212709619046675;
+	ProbNaturalDeath[70] = 0.232085117364568;
+	ProbNaturalDeath[71] = 0.25292358002509;
+	ProbNaturalDeath[72] = 0.27584171899225;
+	ProbNaturalDeath[73] = 0.301132600796412;
+	ProbNaturalDeath[74] = 0.328832323976937;
+	ProbNaturalDeath[75] = 0.358580946581084;
+	ProbNaturalDeath[76] = 0.390547125436947;
+	ProbNaturalDeath[77] = 0.425516392727306;
+	ProbNaturalDeath[78] = 0.463966442471834;
+	ProbNaturalDeath[79] = 0.506035659978245;
+
+	for (i = 80; i <= 120; i++)
+		ProbNaturalDeath[i] = 1.0;
+
+
+}
