@@ -1,8 +1,11 @@
 ﻿#include <stdio.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include"gpu_define.cuh"
+#include "gpu_define.cuh"
 #include "gpu_utils.cuh"
+
+//HAHAHAHAHAHAHAHAH
+
 
 // Test kernel to verify grid conversion and neighbor access
 __global__ void testGridConversion(int L) {
