@@ -86,8 +86,10 @@
     <ClInclude Include="death.h" />
     <ClInclude Include="define.h" />
     <ClInclude Include="E.h" />
+    <ClInclude Include="explanation.h" />
     <ClInclude Include="gpu_aleat.cuh" />
     <ClInclude Include="gpu_define.cuh" />
+    <ClInclude Include="gpu_neighbors.cuh" />
     <ClInclude Include="gpu_person.cuh" />
     <ClInclude Include="gpu_utils.cuh" />
     <ClInclude Include="H.h" />
@@ -104,6 +106,7 @@
     <ClInclude Include="S.h" />
     <ClInclude Include="test_constant_struct.cuh" />
     <ClInclude Include="test_gpu_aleat.cuh" />
+    <ClInclude Include="test_utils.cuh" />
     <ClInclude Include="Update.h" />
     <ClInclude Include="vetorSoma.h" />
   </ItemGroup>

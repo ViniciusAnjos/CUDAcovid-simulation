@@ -2,12 +2,12 @@
 #define GPU_UTILS_CUH
 
 // Convert 2D grid position to 1D array index
-__device__ inline int to1D(int i, int j, int L) {
+__host__ __device__ inline int to1D(int i, int j, int L) {
     return i * (L + 2) + j;
 }
 
 // Convert 1D array index to 2D grid position
-__device__ inline void to2D(int idx, int L, int& i, int& j) {
+__host__ __device__ inline void to2D(int idx, int L, int& i, int& j) {
     i = idx / (L + 2);
     j = idx % (L + 2);
 }

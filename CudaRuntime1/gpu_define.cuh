@@ -2,7 +2,7 @@
 #define GPU_CONSTANTS_CUH
 
 #include "define.h"
-#include "cities.h"
+
 
 //cities(ROC);
 

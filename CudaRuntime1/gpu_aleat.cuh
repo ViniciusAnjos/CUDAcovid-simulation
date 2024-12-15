@@ -4,7 +4,7 @@
 __device__ unsigned int* d_rngStates;
 
 // The random number generation function - matches the original aleat() implementation
-__device__ double gpuAleatMatch(unsigned int* state) {
+__device__ double generateRandom(unsigned int* state) {
     // We use unsigned long long for the multiplication to prevent overflow issues
     unsigned long long temp = (unsigned long long) * state * 888121ULL;
 
