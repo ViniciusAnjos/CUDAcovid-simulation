@@ -87,12 +87,14 @@
     <ClInclude Include="define.h" />
     <ClInclude Include="E.h" />
     <ClInclude Include="explanation.h" />
+    <ClInclude Include="E_kernel.cuh" />
     <ClInclude Include="gpu_aleat.cuh" />
     <ClInclude Include="gpu_define.cuh" />
     <ClInclude Include="gpu_neighbors.cuh" />
     <ClInclude Include="gpu_person.cuh" />
     <ClInclude Include="gpu_utils.cuh" />
     <ClInclude Include="H.h" />
+    <ClInclude Include="S_kernel.cuh" />
     <ClInclude Include="I.h" />
     <ClInclude Include="ICU.h" />
     <ClInclude Include="IP.h" />
@@ -105,7 +107,11 @@
     <ClInclude Include="probsrecovery.h" />
     <ClInclude Include="S.h" />
     <ClInclude Include="test_constant_struct.cuh" />
+    <ClInclude Include="test_E_kernel.cuh" />
     <ClInclude Include="test_gpu_aleat.cuh" />
+    <ClInclude Include="test_neighbors.cuh" />
+    <ClInclude Include="test_spreadInfection.cuh" />
+    <ClInclude Include="test_S_kernel.cuh" />
     <ClInclude Include="test_utils.cuh" />
     <ClInclude Include="Update.h" />
     <ClInclude Include="vetorSoma.h" />

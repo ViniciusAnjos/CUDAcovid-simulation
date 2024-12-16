@@ -1,5 +1,3 @@
-#ifndef GPU_CONSTANTS_CUH
-#define GPU_CONSTANTS_CUH
 
 #include "define.h"
 
@@ -107,55 +105,81 @@ __device__ double* d_SumProbBirthAge;
 __device__ int* d_AgeMin;
 __device__ int* d_AgeMax;
 
-__host__ void setupCityParameters(int city) {
-    // These values will be copied to GPU constants
-    double bedspop = 0.0;
-    double icupop = 0.0;
-    double maxContacts = 0.0;
-    double minContacts = 0.0;
-    int density = LOW;
+__host__ void setupCityParameters(int city)  {
+    // Declare valores para serem copiados para as constantes da GPU
 
-    // Use the same switch from cities.h
-    switch (city) {
-    case SP:  // São Paulo
-        density = HIGH;
-        bedspop = 0.00247452;
-        icupop = 0.00043782;
-        maxContacts = 2.5;
-        minContacts = 1.5;
+    // Define valores baseados na cidade
+    switch (city)
+    {
+    case SP:
+
+        //São paulo
+        Density = HIGH;
+        BEDSPOP = 0.00247452;
+        ICUPOP = 0.00043782;
+        MaxRandomContacts = 2.5;
+        MinRandomContacts = 1.5;
+
+
         break;
 
-    case ROC:  // Rocinha
-        density = HIGH;
-        bedspop = 0.00055111;
-        icupop = 0.00014592;
-        maxContacts = 119.5;
-        minContacts = 1.5;
+    case ROC:
+
+        //Rocinha
+        Density = HIGH;
+        BEDSPOP = 0.00055111;
+        ICUPOP = 0.00014592;
+        MaxRandomContacts = 119.5;
+        MinRandomContacts = 1.5;
+
         break;
 
-    case BRA:  // Brasília
-        density = LOW;
-        bedspop = 0.00260879;
-        icupop = 0.00040114;
-        maxContacts = 2.5;
-        minContacts = 1.5;
+    case BRA:
+
+        //Brasília
+        Density = LOW;
+        BEDSPOP = 0.00260879;
+        ICUPOP = 0.00040114;
+        MaxRandomContacts = 2.5;
+        MinRandomContacts = 1.5;
+
         break;
 
-    case MAN:  // Manaus
-        density = LOW;
-        bedspop = 0.00187124;
-        icupop = 0.00027858;
-        maxContacts = 2.5;
-        minContacts = 1.5;
+    case MAN:
+
+        //Manaus
+        Density = LOW;
+        BEDSPOP = 0.00187124;
+        ICUPOP = 0.00027858;
+        MaxRandomContacts = 2.5;
+        MinRandomContacts = 1.5;
+
+
+
         break;
 
-    case C5:
-    case C6:
-    case C7:
-        density = HIGH;
-        break;
+
+    default:
+        printf("City not found\n");
+
+
     }
+
+    NumberOfHospitalBeds = BEDSPOP * N;
+    NumberOfICUBeds = ICUPOP * N;
+    
+    printf("City parameters set:\n");
+    printf("Density: %d\n", Density);
+    printf("MaxRandomContacts: %f\n", MaxRandomContacts);
+    printf("MinRandomContacts: %f\n", MinRandomContacts);
+    printf("Hospital Beds: %d\n", NumberOfHospitalBeds);
+    printf("ICU Beds: %d\n", NumberOfICUBeds);
+ 
+
+
+
 }
+
 
 
 
@@ -439,8 +463,8 @@ __host__ void setupGPUConstants() {
     cudaMemcpyToSymbol(d_MaxRandomContacts, &MaxRandomContacts, sizeof(double));
     cudaMemcpyToSymbol(d_MinRandomContacts, &MinRandomContacts, sizeof(double));
     cudaMemcpyToSymbol(d_Density, &Density, sizeof(int));
-    cudaMemcpyToSymbol(HIGH, &HIGH, sizeof(int));
-    cudaMemcpyToSymbol(LOW, &LOW, sizeof(int));
+    cudaMemcpyToSymbol(d_HIGH, &HIGH, sizeof(int));   
+    cudaMemcpyToSymbol(d_LOW, &LOW, sizeof(int));
     cudaMemcpyToSymbol(d_SP, &SP, sizeof(int));
     cudaMemcpyToSymbol(d_ROC, &ROC, sizeof(int));
     cudaMemcpyToSymbol(d_BRA, &BRA, sizeof(int));
@@ -454,12 +478,11 @@ __host__ void setupGPUConstants() {
     // Isolation Constants
     cudaMemcpyToSymbol(d_IsolationYes, &IsolationYes, sizeof(int));
     cudaMemcpyToSymbol(d_IsolationNo, &IsolationNo, sizeof(int));
-    cudaMemcpyToSymbol(ON, &ON, sizeof(int));
-    cudaMemcpyToSymbol(OFF, &OFF, sizeof(int));
+    cudaMemcpyToSymbol(d_ON, &ON, sizeof(int));     
+    cudaMemcpyToSymbol(d_OFF, &OFF, sizeof(int));
 
     // Allocate GPU memory for arrays
-    cudaMalloc((void**)&d_ProbNaturalDeath, 121 * sizeof(double));
-    cudaMalloc((void**)&d_ProbNaturalDeath, 121 * sizeof(double));
+    cudaMalloc((void**)&d_ProbNaturalDeath, 121 * sizeof(double));       
     cudaMalloc((void**)&d_ProbRecoveryModerate, 121 * sizeof(double));
     cudaMalloc((void**)&d_ProbRecoverySevere, 121 * sizeof(double));
     cudaMalloc((void**)&d_ProbRecoveryH, 121 * sizeof(double));
@@ -517,4 +540,12 @@ __host__ void cleanupGPUConstants() {
     cudaFree(d_AgeMax);
 }
 
-#endif
+void printConstants() {
+    double h_MaxRandomContacts, h_MinRandomContacts;
+    cudaMemcpyFromSymbol(&h_MaxRandomContacts, d_MaxRandomContacts, sizeof(double));
+    cudaMemcpyFromSymbol(&h_MinRandomContacts, d_MinRandomContacts, sizeof(double));
+    printf("MaxRandomContacts: %f\n", h_MaxRandomContacts);
+    printf("MinRandomContacts: %f\n", h_MinRandomContacts);
+}
+
+

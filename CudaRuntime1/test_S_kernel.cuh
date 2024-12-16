@@ -1,4 +1,4 @@
-﻿#include <stdio.h>
+#include <stdio.h>
 #include <cuda_runtime.h>
 #include "gpu_define.cuh"
 #include "gpu_person.cuh"

@@ -1,5 +1,4 @@
-#ifndef GPU_STRUCTS_CUH
-#define GPU_STRUCTS_CUH
+
 
 #include<cuda_runtime.h>
 
@@ -20,7 +19,7 @@ struct Individual {
     int Checked;
 };
 
-struct GPUPerson {
+struct __align__(16) GPUPerson {
     int Health;
     int Swap;
     int Gender;
@@ -61,4 +60,3 @@ __host__ void copyFromGPU(Individual* h_person, GPUPerson* d_person, int L) {
 
 
 
-#endif

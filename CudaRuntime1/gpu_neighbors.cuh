@@ -1,6 +1,3 @@
-#ifndef GPU_CONTACTS_CUH
-#define GPU_CONTACTS_CUH
-
 
 
 // Structure to hold contact checking results
@@ -10,7 +7,7 @@ struct ContactResult {
 };
 
 // Function to check if a person is in an infectious state
-__device__ inline bool isInfectious(int health) {
+__host__ __device__ inline bool isInfectious(int health) {
     return (health == d_IP || health == d_ISLight ||
         health == d_ISModerate || health == d_ISSevere ||
         health == d_IA || health == d_H || health == d_ICU);
@@ -94,10 +91,57 @@ __device__ ContactResult checkAllContacts(int i, int j, int L,
     return totalResult;
 }
 
+__device__ void spreadInfection_kernel(int i, int j, GPUPerson* population,
+    unsigned int* rngState, int L) {
+
+    double rn = generateRandom(rngState);
+    int randomContacts = (int)(rn * (d_MaxRandomContacts - d_MinRandomContacts) +
+        d_MinRandomContacts);
+
+
+    for (int contact = 0; contact < randomContacts; contact++) {
+        int Randomi, Randomj;
+        do {
+            rn = generateRandom(rngState);
+            Randomi = (int)(rn * L) + 1;
+
+            rn = generateRandom(rngState);
+            Randomj = (int)(rn * L) + 1;
+        } while (Randomi == i && Randomj == j);
+
+        int randomIdx = to1D(Randomi, Randomj, L);
+
+        if (population[randomIdx].Health == d_S) {
+
+            int oldval = atomicAdd((int*)&population[randomIdx].Exponent, 1);
+
+            if (population[randomIdx].Checked == 0 && oldval == 0) {
+                double ProbContagion = 1.0 - pow(1.0 - d_Beta, (double)(oldval + 1));
+
+                rn = generateRandom(rngState);
+
+
+                if (rn <= ProbContagion) {
+                    population[randomIdx].Checked = 1;
+                    population[randomIdx].Swap = d_E;
+                    population[randomIdx].TimeOnState = 0;
+
+                    rn = generateRandom(rngState);
+                    population[randomIdx].StateTime = rn * (d_MaxLatency - d_MinLatency) + d_MinLatency;
+
+
+                }
+            }
+        }
+    }
+}
+
+
 // Calculate infection probability based on number of contacts
 __device__ double calculateInfectionProbability(int infectiousContacts) {
     if (infectiousContacts == 0) return 0.0;
     return 1.0 - pow(1.0 - d_Beta, (double)infectiousContacts);
 }
 
-#endif
+
+
