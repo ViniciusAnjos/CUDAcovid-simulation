@@ -131,8 +131,13 @@ const int OFF = 0;
 const int LOW = 0;
 const int HIGH = 1;
 
-int AvailableBeds;
-int AvailableBedsICU;
+
+double BEDSPOP;
+double ICUPOP;
+
+int NumberOfHospitalBeds;
+int NumberOfICUBeds;
+
 
 int MaximumIsolated;
 int CountIsolated;
@@ -149,9 +154,4 @@ double MinRandomContacts;
 
 //double ProportionOfICUBeds;  // proportion relative to the total of hospital beds
 //int TotalBedsICU;
-double BEDSPOP;
-double ICUPOP;
-
-int NumberOfHospitalBeds;
-int NumberOfICUBeds;
 

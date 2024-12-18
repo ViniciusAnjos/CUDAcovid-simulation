@@ -69,6 +69,8 @@ __constant__ double d_MinICU, d_MaxICU;
 // Health System Constants
 __constant__ double d_AverageOcupationRateBeds;
 __constant__ double d_AverageOcupationRateBedsICU;
+__device__ int AvailableBeds;
+__device__ int AvailableBedsICU;
 
 // City Parameters
 __constant__ double d_BEDSPOP;
@@ -105,81 +107,107 @@ __device__ double* d_SumProbBirthAge;
 __device__ int* d_AgeMin;
 __device__ int* d_AgeMax;
 
-__host__ void setupCityParameters(int city)  {
-    // Declare valores para serem copiados para as constantes da GPU
+__host__ void setupCityParameters(int city) {
+    printf("\nSetting up city parameters for city ID: %d\n", city);
 
     // Define valores baseados na cidade
-    switch (city)
-    {
+    switch (city) {
     case SP:
-
         //São paulo
         Density = HIGH;
         BEDSPOP = 0.00247452;
         ICUPOP = 0.00043782;
         MaxRandomContacts = 2.5;
         MinRandomContacts = 1.5;
-
-
+        printf("Selected city: São Paulo\n");
         break;
 
     case ROC:
-
         //Rocinha
         Density = HIGH;
         BEDSPOP = 0.00055111;
         ICUPOP = 0.00014592;
         MaxRandomContacts = 119.5;
         MinRandomContacts = 1.5;
-
+        printf("Selected city: Rocinha\n");
         break;
 
     case BRA:
-
         //Brasília
         Density = LOW;
         BEDSPOP = 0.00260879;
         ICUPOP = 0.00040114;
         MaxRandomContacts = 2.5;
         MinRandomContacts = 1.5;
-
+        printf("Selected city: Brasília\n");
         break;
 
     case MAN:
-
         //Manaus
         Density = LOW;
         BEDSPOP = 0.00187124;
         ICUPOP = 0.00027858;
         MaxRandomContacts = 2.5;
         MinRandomContacts = 1.5;
-
-
-
+        printf("Selected city: Manaus\n");
         break;
-
 
     default:
         printf("City not found\n");
-
-
+        return;
     }
+
 
     NumberOfHospitalBeds = BEDSPOP * N;
     NumberOfICUBeds = ICUPOP * N;
-    
-    printf("City parameters set:\n");
-    printf("Density: %d\n", Density);
-    printf("MaxRandomContacts: %f\n", MaxRandomContacts);
-    printf("MinRandomContacts: %f\n", MinRandomContacts);
-    printf("Hospital Beds: %d\n", NumberOfHospitalBeds);
-    printf("ICU Beds: %d\n", NumberOfICUBeds);
- 
+
+    printf("\nCalculated parameters:\n");
+    printf("Population (N = L*L): %d\n", N);
+    printf("BEDSPOP: %f\n", BEDSPOP);
+    printf("ICUPOP: %f\n", ICUPOP);
+    printf("Total Hospital Beds: %d\n", NumberOfHospitalBeds);
+    printf("Total ICU Beds: %d\n", NumberOfICUBeds);
+
+    // Copy values to device constants
+    printf("\nCopying parameters to GPU...\n");
 
 
+    cudaMemcpyToSymbol(d_BEDSPOP, &BEDSPOP, sizeof(double));
+    cudaMemcpyToSymbol(d_ICUPOP, &ICUPOP, sizeof(double));
+    cudaMemcpyToSymbol(d_MaxRandomContacts, &MaxRandomContacts, sizeof(double));
+    cudaMemcpyToSymbol(d_MinRandomContacts, &MinRandomContacts, sizeof(double));
+    cudaMemcpyToSymbol(d_Density, &Density, sizeof(int));
 
+
+    // Calculate and copy available beds
+    int initial_beds = NumberOfHospitalBeds - (int)(NumberOfHospitalBeds * AverageOcupationRateBeds);
+    int initial_icu = NumberOfICUBeds - (int)(NumberOfICUBeds * AverageOcupationRateBedsICU);
+
+    cudaMemcpyToSymbol(AvailableBeds, &initial_beds, sizeof(int));
+
+
+    cudaMemcpyToSymbol(AvailableBedsICU, &initial_icu, sizeof(int));
+
+
+    printf("\nFinal bed calculations:\n");
+    printf("Available Hospital Beds (50%%): %d\n", initial_beds);
+    printf("Available ICU Beds (50%%): %d\n", initial_icu);
+
+    // Verify copy was successful
+    double verify_bedspop, verify_icupop;
+    int verify_beds, verify_icu;
+
+    cudaMemcpyFromSymbol(&verify_bedspop, d_BEDSPOP, sizeof(double));
+    cudaMemcpyFromSymbol(&verify_icupop, d_ICUPOP, sizeof(double));
+    cudaMemcpyFromSymbol(&verify_beds, AvailableBeds, sizeof(int));
+    cudaMemcpyFromSymbol(&verify_icu, AvailableBedsICU, sizeof(int));
+
+    printf("\nVerification of GPU values:\n");
+    printf("d_BEDSPOP: %f\n", verify_bedspop);
+    printf("d_ICUPOP: %f\n", verify_icupop);
+    printf("AvailableBeds: %d\n", verify_beds);
+    printf("AvailableBedsICU: %d\n", verify_icu);
 }
-
 
 
 
@@ -394,6 +422,8 @@ __host__ void buildArrays(
 
 // Function to initialize GPU constants
 __host__ void setupGPUConstants() {
+
+
     // Disease States
     cudaMemcpyToSymbol(d_S, &S, sizeof(int));
     cudaMemcpyToSymbol(d_E, &E, sizeof(int));
@@ -458,8 +488,7 @@ __host__ void setupGPUConstants() {
     cudaMemcpyToSymbol(d_AverageOcupationRateBedsICU, &AverageOcupationRateBedsICU, sizeof(double));
 
     // City Parameters
-    cudaMemcpyToSymbol(d_BEDSPOP, &BEDSPOP, sizeof(double));
-    cudaMemcpyToSymbol(d_ICUPOP, &ICUPOP, sizeof(double));
+
     cudaMemcpyToSymbol(d_MaxRandomContacts, &MaxRandomContacts, sizeof(double));
     cudaMemcpyToSymbol(d_MinRandomContacts, &MinRandomContacts, sizeof(double));
     cudaMemcpyToSymbol(d_Density, &Density, sizeof(int));
@@ -472,7 +501,7 @@ __host__ void setupGPUConstants() {
     cudaMemcpyToSymbol(d_C5, &C5, sizeof(int));
     cudaMemcpyToSymbol(d_C6, &C6, sizeof(int));
     cudaMemcpyToSymbol(d_C7, &C7, sizeof(int));
-    
+
 
     
     // Isolation Constants
@@ -525,6 +554,8 @@ __host__ void setupGPUConstants() {
     cudaMemcpy(d_SumProbBirthAge, h_SumProbBirthAge, 21 * sizeof(double), cudaMemcpyHostToDevice);
     cudaMemcpy(d_AgeMin, h_AgeMin, 21 * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_AgeMax, h_AgeMax, 21 * sizeof(int), cudaMemcpyHostToDevice);
+
+
 }
 
 // Function to clean up GPU constants

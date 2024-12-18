@@ -94,6 +94,9 @@
     <ClInclude Include="gpu_person.cuh" />
     <ClInclude Include="gpu_utils.cuh" />
     <ClInclude Include="H.h" />
+    <ClInclude Include="ICU_kernel.cuh" />
+    <ClInclude Include="IP_kernel.cuh" />
+    <ClInclude Include="IS_kernel.cuh" />
     <ClInclude Include="S_kernel.cuh" />
     <ClInclude Include="I.h" />
     <ClInclude Include="ICU.h" />
@@ -109,6 +112,9 @@
     <ClInclude Include="test_constant_struct.cuh" />
     <ClInclude Include="test_E_kernel.cuh" />
     <ClInclude Include="test_gpu_aleat.cuh" />
+    <ClInclude Include="test_ICU_kernel.cuh" />
+    <ClInclude Include="test_IP_kernel.cuh" />
+    <ClInclude Include="test_IS_kernel.cuh" />
     <ClInclude Include="test_neighbors.cuh" />
     <ClInclude Include="test_spreadInfection.cuh" />
     <ClInclude Include="test_S_kernel.cuh" />
