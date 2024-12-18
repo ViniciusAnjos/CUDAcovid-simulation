@@ -1,4 +1,6 @@
-﻿#include <stdio.h>
+﻿
+
+#include <stdio.h>
 #include <cuda_runtime.h>
 #include "gpu_define.cuh"
 #include "gpu_person.cuh"
@@ -6,8 +8,10 @@
 #include "gpu_aleat.cuh"
 #include "gpu_neighbors.cuh"
 
-__global__ void IS_kernel(GPUPerson* population, unsigned int* rngStates, int L) {
+__global__ void IS_kernel(GPUPerson * population, unsigned int* rngStates, int L) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx >= L * L) return;
 
     int i, j;
     to2D(idx, L, i, j);
@@ -85,7 +89,7 @@ __global__ void IS_kernel(GPUPerson* population, unsigned int* rngStates, int L)
                             population[personIdx].Swap = d_ISSevere;
                             rn = generateRandom(&rngStates[idx]);
                             population[personIdx].StateTime =
-                                rn * (d_MaxISSevere - d_MinISSevere) + d_MinISSevere;  
+                                rn * (d_MaxISSevere - d_MinISSevere) + d_MinISSevere;
                             printf("ISModerate -> ISSevere at (%d,%d)\n", i, j);
                         }
                     }
@@ -270,6 +274,12 @@ void test_IS_state() {
     int numBlocks = (gridDim + blockSize - 1) / blockSize;
     printf("\nLaunching IS_kernel with %d blocks, %d threads per block\n",
         numBlocks, blockSize);
+
+    printf("\nGrid Configuration:\n");
+    printf("L: %d\n", L);
+    printf("Total Grid Size (with boundaries): %d x %d\n", L + 2, L + 2);
+    printf("Block Size: %d\n", blockSize);
+    printf("Number of Blocks: %d\n", numBlocks);
 
     IS_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
     cudaDeviceSynchronize();
