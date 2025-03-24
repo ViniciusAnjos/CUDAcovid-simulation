@@ -89,11 +89,14 @@
     <ClInclude Include="explanation.h" />
     <ClInclude Include="E_kernel.cuh" />
     <ClInclude Include="gpu_aleat.cuh" />
+    <ClInclude Include="gpu_begin.cuh" />
     <ClInclude Include="gpu_define.cuh" />
     <ClInclude Include="gpu_neighbors.cuh" />
     <ClInclude Include="gpu_person.cuh" />
+    <ClInclude Include="gpu_update_boundaries.cuh" />
     <ClInclude Include="gpu_utils.cuh" />
     <ClInclude Include="H.h" />
+    <ClInclude Include="H_kernel.cuh" />
     <ClInclude Include="ICU_kernel.cuh" />
     <ClInclude Include="IP_kernel.cuh" />
     <ClInclude Include="IS_kernel.cuh" />
@@ -112,6 +115,9 @@
     <ClInclude Include="test_constant_struct.cuh" />
     <ClInclude Include="test_E_kernel.cuh" />
     <ClInclude Include="test_gpu_aleat.cuh" />
+    <ClInclude Include="test_gpu_begin.cuh" />
+    <ClInclude Include="test_gpu_update_boundaries.cuh" />
+    <ClInclude Include="test_H_kernel.cuh" />
     <ClInclude Include="test_ICU_kernel.cuh" />
     <ClInclude Include="test_IP_kernel.cuh" />
     <ClInclude Include="test_IS_kernel.cuh" />
