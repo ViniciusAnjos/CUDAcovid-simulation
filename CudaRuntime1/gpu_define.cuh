@@ -555,7 +555,32 @@ __host__ void setupGPUConstants() {
     cudaMemcpy(d_AgeMin, h_AgeMin, 21 * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_AgeMax, h_AgeMax, 21 * sizeof(int), cudaMemcpyHostToDevice);
 
+    // Create temporary pointers to store the device addresses
+    double* d_ProbNaturalDeath_temp = d_ProbNaturalDeath;
+    double* d_ProbRecoveryModerate_temp = d_ProbRecoveryModerate;
+    double* d_ProbRecoverySevere_temp = d_ProbRecoverySevere;
+    double* d_ProbRecoveryH_temp = d_ProbRecoveryH;
+    double* d_ProbRecoveryICU_temp = d_ProbRecoveryICU;
+    double* d_ProbBirthAge_temp = d_ProbBirthAge;
+    double* d_SumProbBirthAge_temp = d_SumProbBirthAge;
+    int* d_AgeMin_temp = d_AgeMin;
+    int* d_AgeMax_temp = d_AgeMax;
 
+    // Now copy these pointers to the device symbols
+    cudaMemcpyToSymbol(d_ProbNaturalDeath, &d_ProbNaturalDeath_temp, sizeof(double*));
+    cudaMemcpyToSymbol(d_ProbRecoveryModerate, &d_ProbRecoveryModerate_temp, sizeof(double*));
+    cudaMemcpyToSymbol(d_ProbRecoverySevere, &d_ProbRecoverySevere_temp, sizeof(double*));
+    cudaMemcpyToSymbol(d_ProbRecoveryH, &d_ProbRecoveryH_temp, sizeof(double*));
+    cudaMemcpyToSymbol(d_ProbRecoveryICU, &d_ProbRecoveryICU_temp, sizeof(double*));
+    cudaMemcpyToSymbol(d_ProbBirthAge, &d_ProbBirthAge_temp, sizeof(double*));
+    cudaMemcpyToSymbol(d_SumProbBirthAge, &d_SumProbBirthAge_temp, sizeof(double*));
+    cudaMemcpyToSymbol(d_AgeMin, &d_AgeMin_temp, sizeof(int*));
+    cudaMemcpyToSymbol(d_AgeMax, &d_AgeMax_temp, sizeof(int*));
+
+    // Verify a pointer was set correctly
+    double* verify_ptr;
+    cudaMemcpyFromSymbol(&verify_ptr, d_ProbRecoveryH, sizeof(double*));
+    printf("d_ProbRecoveryH pointer: %p\n", verify_ptr);
 }
 
 // Function to clean up GPU constants
