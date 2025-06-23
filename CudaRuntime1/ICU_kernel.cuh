@@ -1,7 +1,6 @@
-// Enhanced ICU_kernel with debug output
-__global__ void ICU_kernel(GPUPerson* population, unsigned int* rngStates, int L) {
+__global__ void ICU_kernel(GPUPerson* population, unsigned int* rngStates, int L, int* hospitalBeds, int* icuBeds) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= L * L) return;
+    if (idx >= (L + 2) * (L + 2)) return;
 
     int i, j;
     to2D(idx, L, i, j);
@@ -9,41 +8,49 @@ __global__ void ICU_kernel(GPUPerson* population, unsigned int* rngStates, int L
     if (i > 0 && i <= L && j > 0 && j <= L) {
         int personIdx = to1D(i, j, L);
         if (population[personIdx].Health == d_ICU) {
-            printf("\nProcessing ICU case at (%d,%d):\n", i, j);
-            printf("- Initial: TimeOnState=%d, StateTime=%d, Days=%d, Age=%d\n",
-                population[personIdx].TimeOnState,
-                population[personIdx].StateTime,
-                population[personIdx].Days,
-                population[personIdx].AgeYears);
-
+            // Increment time in current state
             population[personIdx].TimeOnState++;
 
+            // Check for natural death
             if (population[personIdx].Days >= population[personIdx].AgeDeathDays) {
                 population[personIdx].Swap = d_Dead;
-                atomicAdd(&AvailableBedsICU, 1);
-                printf("- Natural death occurred, freed ICU bed\n");
+
+                // Free up an ICU bed
+                atomicAdd(icuBeds, 1);
             }
             else {
+                // Check if time in ICU is complete
                 if (population[personIdx].TimeOnState >= population[personIdx].StateTime) {
-                    double rn = generateRandom(&rngStates[idx]);
-                    double recoveryProb = d_ProbRecoveryICU[population[personIdx].AgeYears];
-                    printf("- Time in ICU complete, RN=%f (recovery prob=%f)\n",
-                        rn, recoveryProb);
+                    // Get thread-specific RNG
+                    unsigned int* myRNG = &rngStates[idx];
 
+                    // Use age-specific recovery probability from global device pointer
+                    int age = population[personIdx].AgeYears;
+                    if (age > 120) age = 120; // Safety check
+
+                    // Access the global device pointer
+                    double recoveryProb = d_ProbRecoveryICU[age];
+
+                    // Determine outcome based on recovery probability
+                    double rn = generateRandom(myRNG);
                     if (rn < recoveryProb) {
+                        // Patient recovers from ICU
                         population[personIdx].Swap = d_Recovered;
-                        atomicAdd(&AvailableBedsICU, 1);
-                        printf("- Recovered from ICU, freed bed\n");
+
+                        // Free up an ICU bed
+                        atomicAdd(icuBeds, 1);
                     }
                     else {
+                        // Patient dies in ICU
                         population[personIdx].Swap = d_DeadCovid;
-                        atomicAdd(&AvailableBedsICU, 1);
-                        printf("- Died in ICU, freed bed\n");
+
+                        // Free up an ICU bed
+                        atomicAdd(icuBeds, 1);
                     }
                 }
                 else {
+                    // Continue ICU care
                     population[personIdx].Swap = d_ICU;
-                    printf("- Continuing ICU care\n");
                 }
             }
         }
