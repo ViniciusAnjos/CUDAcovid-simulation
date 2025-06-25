@@ -1,0 +1,246 @@
+// Global counters that need to be allocated
+__device__ int d_S_Total;
+__device__ int d_E_Total;
+__device__ int d_IP_Total;
+__device__ int d_IA_Total;
+__device__ int d_ISLight_Total;
+__device__ int d_ISModerate_Total;
+__device__ int d_ISSevere_Total;
+__device__ int d_H_Total;
+__device__ int d_ICU_Total;
+__device__ int d_Recovered_Total;
+__device__ int d_DeadCovid_Total;
+__device__ int d_Dead_Total;
+
+// New case counters
+__device__ int d_New_S;
+__device__ int d_New_E;
+__device__ int d_New_IP;
+__device__ int d_New_IA;
+__device__ int d_New_ISLight;
+__device__ int d_New_ISModerate;
+__device__ int d_New_ISSevere;
+__device__ int d_New_H;
+__device__ int d_New_ICU;
+__device__ int d_New_Recovered;
+__device__ int d_New_DeadCovid;
+__device__ int d_New_Dead;
+
+// Kernel to reset counters at the beginning of update
+__global__ void resetCounters_kernel() {
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
+        d_S_Total = 0;
+        d_E_Total = 0;
+        d_IP_Total = 0;
+        d_IA_Total = 0;
+        d_ISLight_Total = 0;
+        d_ISModerate_Total = 0;
+        d_ISSevere_Total = 0;
+        d_H_Total = 0;
+        d_ICU_Total = 0;
+        d_Recovered_Total = 0;
+        d_DeadCovid_Total = 0;
+        d_Dead_Total = 0;
+    }
+}
+
+// Kernel to reset new case counters 
+__global__ void resetNewCounters_kernel() {
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
+        d_New_S = 0;
+        d_New_E = 0;
+        d_New_IP = 0;
+        d_New_IA = 0;
+        d_New_ISLight = 0;
+        d_New_ISModerate = 0;
+        d_New_ISSevere = 0;
+        d_New_H = 0;
+        d_New_ICU = 0;
+        d_New_Recovered = 0;
+        d_New_DeadCovid = 0;
+        d_New_Dead = 0;
+    }
+}
+
+// Main update kernel
+__global__ void update_kernel(GPUPerson* population,
+    unsigned int* rngStates,
+    int L,
+    int currentDay,
+    double* d_ProbNaturalDeath) {
+
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= (L + 2) * (L + 2)) return;
+
+    int i, j;
+    to2D(idx, L, i, j);
+
+    // Only process inner grid cells
+    if (i > 0 && i <= L && j > 0 && j <= L) {
+        int personIdx = to1D(i, j, L);
+
+        // Update health state (Swap -> Health)
+        population[personIdx].Health = population[personIdx].Swap;
+
+        // Reset temporary infection tracking variables
+        population[personIdx].Exponent = 0;
+        population[personIdx].Checked = 0;
+
+        // Age the person by one day
+        population[personIdx].AgeDays++;
+        population[personIdx].Days++;
+
+        // Check if person reached natural death age
+        if (population[personIdx].AgeDays >= population[personIdx].AgeDeathDays) {
+            population[personIdx].Health = d_Dead;
+        }
+
+        // Handle dead individuals (both COVID and natural deaths)
+        if (population[personIdx].Health == d_Dead ||
+            population[personIdx].Health == d_DeadCovid) {
+
+            // Count the death
+            if (population[personIdx].Health == d_Dead) {
+                atomicAdd(&d_New_Dead, 1);
+                atomicAdd(&d_Dead_Total, 1);
+            }
+            // Note: DeadCovid is already counted in the state-specific kernels
+
+            // Replace with a newborn susceptible individual
+            unsigned int* myRNG = &rngStates[idx];
+
+            // Reset to susceptible
+            population[personIdx].Health = d_S;
+            population[personIdx].Swap = d_S;
+
+            // Assign age using simple uniform distribution (matching original Update.h)
+            double rn = generateRandom(myRNG);
+            population[personIdx].AgeYears = (int)(rn * 100);
+            population[personIdx].AgeDays = population[personIdx].AgeYears * 365;
+
+            // Random birthday within the year
+            rn = generateRandom(myRNG);
+            population[personIdx].AgeDays = (int)(rn * 365);
+
+            // Reset days in simulation
+            population[personIdx].Days = 0;
+
+            // Reset state timers
+            population[personIdx].TimeOnState = 0;
+            population[personIdx].StateTime = 0;
+
+            // Assign natural death age using mortality probability
+            int mute = 0;
+            do {
+                rn = generateRandom(myRNG);
+                population[personIdx].AgeDeathYears = (int)(rn * 100);
+
+                rn = generateRandom(myRNG);
+                if (rn < d_ProbNaturalDeath[population[personIdx].AgeDeathYears]) {
+                    mute = 1; // Accept this death age
+                }
+            } while (mute < 1);
+
+            population[personIdx].AgeDeathDays = population[personIdx].AgeDeathYears * 365;
+
+            // Ensure death age is greater than current age
+            if (population[personIdx].AgeDeathYears < population[personIdx].AgeYears) {
+                int temp = population[personIdx].AgeDeathYears;
+                population[personIdx].AgeDeathYears = population[personIdx].AgeYears;
+                population[personIdx].AgeYears = temp;
+                population[personIdx].AgeDeathDays = population[personIdx].AgeDeathYears * 365;
+                population[personIdx].AgeDays = population[personIdx].AgeYears * 365;
+            }
+
+            // Count new susceptible
+            atomicAdd(&d_New_S, 1);
+        }
+
+        // Count current health states
+        int health = population[personIdx].Health;
+        if (health == d_S) {
+            atomicAdd(&d_S_Total, 1);
+        }
+        else if (health == d_E) {
+            atomicAdd(&d_E_Total, 1);
+        }
+        else if (health == d_IP) {
+            atomicAdd(&d_IP_Total, 1);
+        }
+        else if (health == d_IA) {
+            atomicAdd(&d_IA_Total, 1);
+        }
+        else if (health == d_ISLight) {
+            atomicAdd(&d_ISLight_Total, 1);
+        }
+        else if (health == d_ISModerate) {
+            atomicAdd(&d_ISModerate_Total, 1);
+        }
+        else if (health == d_ISSevere) {
+            atomicAdd(&d_ISSevere_Total, 1);
+        }
+        else if (health == d_H) {
+            atomicAdd(&d_H_Total, 1);
+        }
+        else if (health == d_ICU) {
+            atomicAdd(&d_ICU_Total, 1);
+        }
+        else if (health == d_Recovered) {
+            atomicAdd(&d_Recovered_Total, 1);
+        }
+    }
+}
+
+// Kernel to handle periodic boundary conditions
+__global__ void updateBoundaries_kernel(GPUPerson* population, int L) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Handle horizontal boundaries
+    if (idx > 0 && idx <= L) {
+        // Top boundary
+        population[to1D(0, idx, L)].Health = population[to1D(L, idx, L)].Health;
+        // Bottom boundary  
+        population[to1D(L + 1, idx, L)].Health = population[to1D(1, idx, L)].Health;
+        // Left boundary
+        population[to1D(idx, 0, L)].Health = population[to1D(idx, L, L)].Health;
+        // Right boundary
+        population[to1D(idx, L + 1, L)].Health = population[to1D(idx, 1, L)].Health;
+    }
+
+    // Handle corners (only thread 0)
+    if (idx == 0) {
+        population[to1D(0, 0, L)].Health = population[to1D(L, L, L)].Health;
+        population[to1D(0, L + 1, L)].Health = population[to1D(L, 1, L)].Health;
+        population[to1D(L + 1, 0, L)].Health = population[to1D(1, L, L)].Health;
+        population[to1D(L + 1, L + 1, L)].Health = population[to1D(1, 1, L)].Health;
+    }
+}
+
+// Host function to get counter values
+__host__ void getCountersFromDevice(int* h_totals, int* h_new_cases) {
+    cudaMemcpyFromSymbol(&h_totals[S], d_S_Total, sizeof(int));
+    cudaMemcpyFromSymbol(&h_totals[E], d_E_Total, sizeof(int));
+    cudaMemcpyFromSymbol(&h_totals[IP], d_IP_Total, sizeof(int));
+    cudaMemcpyFromSymbol(&h_totals[IA], d_IA_Total, sizeof(int));
+    cudaMemcpyFromSymbol(&h_totals[ISLight], d_ISLight_Total, sizeof(int));
+    cudaMemcpyFromSymbol(&h_totals[ISModerate], d_ISModerate_Total, sizeof(int));
+    cudaMemcpyFromSymbol(&h_totals[ISSevere], d_ISSevere_Total, sizeof(int));
+    cudaMemcpyFromSymbol(&h_totals[H], d_H_Total, sizeof(int));
+    cudaMemcpyFromSymbol(&h_totals[ICU], d_ICU_Total, sizeof(int));
+    cudaMemcpyFromSymbol(&h_totals[Recovered], d_Recovered_Total, sizeof(int));
+    cudaMemcpyFromSymbol(&h_totals[DeadCovid], d_DeadCovid_Total, sizeof(int));
+    cudaMemcpyFromSymbol(&h_totals[Dead], d_Dead_Total, sizeof(int));
+
+    cudaMemcpyFromSymbol(&h_new_cases[S], d_New_S, sizeof(int));
+    cudaMemcpyFromSymbol(&h_new_cases[E], d_New_E, sizeof(int));
+    cudaMemcpyFromSymbol(&h_new_cases[IP], d_New_IP, sizeof(int));
+    cudaMemcpyFromSymbol(&h_new_cases[IA], d_New_IA, sizeof(int));
+    cudaMemcpyFromSymbol(&h_new_cases[ISLight], d_New_ISLight, sizeof(int));
+    cudaMemcpyFromSymbol(&h_new_cases[ISModerate], d_New_ISModerate, sizeof(int));
+    cudaMemcpyFromSymbol(&h_new_cases[ISSevere], d_New_ISSevere, sizeof(int));
+    cudaMemcpyFromSymbol(&h_new_cases[H], d_New_H, sizeof(int));
+    cudaMemcpyFromSymbol(&h_new_cases[ICU], d_New_ICU, sizeof(int));
+    cudaMemcpyFromSymbol(&h_new_cases[Recovered], d_New_Recovered, sizeof(int));
+    cudaMemcpyFromSymbol(&h_new_cases[DeadCovid], d_New_DeadCovid, sizeof(int));
+    cudaMemcpyFromSymbol(&h_new_cases[Dead], d_New_Dead, sizeof(int));
+}

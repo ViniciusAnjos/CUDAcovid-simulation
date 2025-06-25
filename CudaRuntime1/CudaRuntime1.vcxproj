@@ -126,6 +126,7 @@
     <ClInclude Include="test_S_kernel.cuh" />
     <ClInclude Include="test_utils.cuh" />
     <ClInclude Include="Update.h" />
+    <ClInclude Include="Update_kernel.cuh" />
     <ClInclude Include="vetorSoma.h" />
   </ItemGroup>
   <ItemGroup>
