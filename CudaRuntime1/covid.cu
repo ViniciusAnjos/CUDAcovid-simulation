@@ -1,241 +1,186 @@
-﻿#include <stdio.h>
+﻿// covid_simulation_minimal.cu
+#include <stdio.h>
+#include <stdlib.h>
 #include <cuda_runtime.h>
+
 #include "gpu_define.cuh"
 #include "gpu_person.cuh"
 #include "gpu_utils.cuh"
 #include "gpu_aleat.cuh"
+#include "gpu_begin.cuh"
 #include "update_kernel.cuh"
 
-void printPopulationState(GPUPerson* h_population, int L, const char* title) {
-    printf("\n%s:\n", title);
-    printf("Grid visualization (S=Susceptible, E=Exposed, I=Infectious, etc.):\n");
+// Test with minimal functionality first
+int main(int argc, char* argv[]) {
+    printf("Starting minimal COVID-19 CUDA simulation test\n");
 
-    for (int i = 1; i <= L; i++) {
-        for (int j = 1; j <= L; j++) {
-            int idx = to1D(i, j, L);
-            char symbol = '?';
+    // Initialize city and GPU constants
+    int city = ROC;  // Rocinha
+    setupCityParameters(city);
+    setupGPUConstants();
 
-            int health = h_population[idx].Health;
-            if (health == S) symbol = 'S';
-            else if (health == E) symbol = 'E';
-            else if (health == IP) symbol = 'P';
-            else if (health == IA) symbol = 'A';
-            else if (health == ISLight) symbol = 'L';
-            else if (health == ISModerate) symbol = 'M';
-            else if (health == ISSevere) symbol = 'V';
-            else if (health == H) symbol = 'H';
-            else if (health == ICU) symbol = 'U';
-            else if (health == Recovered) symbol = 'R';
-            else if (health == Dead) symbol = 'D';
-            else if (health == DeadCovid) symbol = 'C';
+    // Add simulation number parameter
+    int simulationNumber = 1;
 
-            printf("%c ", symbol);
-        }
-        printf("\n");
-    }
-}
-
-void test_update_kernel() {
-    const int L = 10;  // Small grid for testing
+    // Basic parameters
+    const int L = 632;  // Grid size
     const int gridSize = (L + 2) * (L + 2);
+    const int N = L * L;
 
-    // Allocate and initialize test population
-    GPUPerson* h_population = new GPUPerson[gridSize];
+    printf("Grid size: %d x %d = %d cells\n", L, L, N);
+    printf("Total array size (with boundaries): %d\n", gridSize);
+
+    // Test 1: Allocate device memory
+    printf("\n1. Testing device memory allocation...\n");
     GPUPerson* d_population;
-    cudaMalloc(&d_population, gridSize * sizeof(GPUPerson));
+    cudaError_t err = cudaMalloc(&d_population, gridSize * sizeof(GPUPerson));
+    if (err != cudaSuccess) {
+        printf("ERROR: Failed to allocate device memory: %s\n", cudaGetErrorString(err));
+        return -1;
+    }
+    printf("   SUCCESS: Allocated %zu MB for population\n",
+        (gridSize * sizeof(GPUPerson)) / (1024 * 1024));
 
-    printf("Testing Update Kernel with %dx%d grid\n", L, L);
-    printf("Now using UNIFORM age distribution (0-100) matching original code\n\n");
-
-    // Initialize all cells
-    for (int i = 0; i < gridSize; i++) {
-        h_population[i].Health = S;
-        h_population[i].Swap = S;
-        h_population[i].TimeOnState = 0;
-        h_population[i].StateTime = 0;
-        h_population[i].Days = 0;
-        h_population[i].AgeDays = 365 * 30;  // 30 years old
-        h_population[i].AgeYears = 30;
-        h_population[i].AgeDeathDays = 365 * 80;  // Dies at 80
-        h_population[i].AgeDeathYears = 80;
-        h_population[i].Checked = 0;
-        h_population[i].Exponent = 0;
-        h_population[i].Isolation = IsolationNo;
+    // Test 2: Initialize RNG
+    printf("\n2. Testing RNG initialization...\n");
+    unsigned int* d_rngStates;
+    err = cudaMalloc(&d_rngStates, gridSize * sizeof(unsigned int));
+    if (err != cudaSuccess) {
+        printf("ERROR: Failed to allocate RNG states: %s\n", cudaGetErrorString(err));
+        cudaFree(d_population);
+        return -1;
     }
 
-    // Set up test cases
-    printf("Setting up test cases:\n");
+    // Initialize RNG states with unique seed
+    unsigned int seed = 893221891 * simulationNumber;
+    int blockSize = 256;
+    int numBlocks = (gridSize + blockSize - 1) / blockSize;
 
-    // Test Case 1: State transitions (set different Swap values)
-    printf("Case 1: Person at (2,2) transitions S->E\n");
-    h_population[to1D(2, 2, L)].Swap = E;
-    h_population[to1D(2, 2, L)].StateTime = 5;
+    initRNG << <numBlocks, blockSize >> > (d_rngStates, seed, gridSize);
+    cudaDeviceSynchronize();
 
-    printf("Case 2: Person at (3,3) transitions E->IP\n");
-    h_population[to1D(3, 3, L)].Health = E;
-    h_population[to1D(3, 3, L)].Swap = IP;
+    // Verify RNG initialization
+    unsigned int h_rngCheck[3];
+    cudaMemcpy(h_rngCheck, d_rngStates, 3 * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+    printf("   SUCCESS: RNG initialized (first 3 states: %u, %u, %u)\n",
+        h_rngCheck[0], h_rngCheck[1], h_rngCheck[2]);
 
-    printf("Case 3: Person at (4,4) recovers\n");
-    h_population[to1D(4, 4, L)].Health = ISLight;
-    h_population[to1D(4, 4, L)].Swap = Recovered;
+    // Test 3: Run population initialization kernel
+    printf("\n3. Testing population initialization kernel...\n");
 
-    // Test Case 4: Natural death
-    printf("Case 4: Person at (5,5) dies naturally\n");
-    h_population[to1D(5, 5, L)].Days = 365 * 85;  // Over death age
-    h_population[to1D(5, 5, L)].AgeDays = 365 * 85;
 
-    // Test Case 5: COVID death replacement
-    printf("Case 5: Person at (6,6) died from COVID (to be replaced)\n");
-    h_population[to1D(6, 6, L)].Health = DeadCovid;
-    h_population[to1D(6, 6, L)].Swap = DeadCovid;
+    initPopulation_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("ERROR: Population init kernel failed: %s\n", cudaGetErrorString(err));
+        cudaFree(d_population);
+        cudaFree(d_rngStates);
+        return -1;
+    }
+    cudaDeviceSynchronize();
+    printf("   SUCCESS: Population initialized\n");
 
-    // Test Case 6: Test exponent/checked reset
-    printf("Case 6: Person at (7,7) has exposure counters to reset\n");
-    h_population[to1D(7, 7, L)].Exponent = 3;
-    h_population[to1D(7, 7, L)].Checked = 1;
-
-    // Test boundary conditions setup
-    printf("Case 7: Boundary test - person at (1,1) for corner check\n");
-    h_population[to1D(1, 1, L)].Health = IP;
-    h_population[to1D(1, 1, L)].Swap = IP;
-
-    h_population[to1D(L, L, L)].Health = IA;
-    h_population[to1D(L, L, L)].Swap = IA;
-
-    // Add multiple death cases to test age distribution
-    printf("\nAdding multiple death cases to test uniform age distribution:\n");
-    for (int i = 2; i <= 5; i++) {
-        printf("Case %d: Person at (8,%d) died from COVID\n", 6 + i, i);
-        h_population[to1D(8, i, L)].Health = DeadCovid;
-        h_population[to1D(8, i, L)].Swap = DeadCovid;
+    // Test 4: Initialize counters
+    printf("\n4. Testing counter initialization...\n");
+    int* d_stateCounts, * d_newCounts;
+    err = cudaMalloc(&d_stateCounts, 15 * sizeof(int));
+    if (err == cudaSuccess) {
+        err = cudaMalloc(&d_newCounts, 15 * sizeof(int));
+    }
+    if (err != cudaSuccess) {
+        printf("ERROR: Failed to allocate counters: %s\n", cudaGetErrorString(err));
+        cudaFree(d_population);
+        cudaFree(d_rngStates);
+        return -1;
     }
 
-    // Copy to device
-    cudaMemcpy(d_population, h_population, gridSize * sizeof(GPUPerson),
-        cudaMemcpyHostToDevice);
+    initCounters_kernel << <1, 32 >> > (d_stateCounts, d_newCounts, N);
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("ERROR: Counter init kernel failed: %s\n", cudaGetErrorString(err));
+        cudaFree(d_population);
+        cudaFree(d_rngStates);
+        cudaFree(d_stateCounts);
+        cudaFree(d_newCounts);
+        return -1;
+    }
+    cudaDeviceSynchronize();
+    printf("   SUCCESS: Counters initialized\n");
 
-    // Setup RNG
-    setupRNG(gridSize);
+    // Test 5: Distribute initial infections
+    printf("\n5. Testing initial infection distribution...\n");
+    distributeInitialInfections_kernel << <1, 1 >> > (
+        d_population, d_rngStates, d_stateCounts, d_newCounts, L,
+        0,  // Eini
+        5,  // IPini
+        0,  // IAini
+        0,  // ISLightini
+        0,  // ISModerateini
+        0   // ISSevereini
+        );
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("ERROR: Infection distribution kernel failed: %s\n", cudaGetErrorString(err));
+        cudaFree(d_population);
+        cudaFree(d_rngStates);
+        cudaFree(d_stateCounts);
+        cudaFree(d_newCounts);
+        return -1;
+    }
+    cudaDeviceSynchronize();
+    printf("   SUCCESS: Initial infections distributed\n");
 
-    // Print initial state
-    printPopulationState(h_population, L, "Initial State");
+    // Test 6: Get statistics
+    printf("\n6. Testing statistics retrieval...\n");
+    int h_totals[15] = { 0 };
+    int h_new_cases[15] = { 0 };
 
-    // Reset counters
+    getCountersFromDevice(h_totals, h_new_cases);
+
+    printf("   Initial population state:\n");
+    printf("   S: %d\n", h_totals[S]);
+    printf("   E: %d\n", h_totals[E]);
+    printf("   IP: %d\n", h_totals[IP]);
+    printf("   IA: %d\n", h_totals[IA]);
+    printf("   Total: %d (should be %d)\n",
+        h_totals[S] + h_totals[E] + h_totals[IP] + h_totals[IA], N);
+
+    // Test 7: Run update kernel
+    printf("\n7. Testing update kernel...\n");
+
+    // Reset counters first
     resetCounters_kernel << <1, 1 >> > ();
     resetNewCounters_kernel << <1, 1 >> > ();
     cudaDeviceSynchronize();
 
-    // First update boundaries
-    int boundaryBlocks = (L + 255) / 256;
-    updateBoundaries_kernel << <boundaryBlocks, 256 >> > (d_population, L);
-
-    // Then run update kernel - NOTE: Simplified parameters (no age distribution arrays)
-    int blockSize = 256;
-    int numBlocks = (gridSize + blockSize - 1) / blockSize;
-
-    printf("\nRunning update_kernel with uniform age distribution...\n");
-    update_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L, 1,
-        d_ProbNaturalDeath);
-
-    // Check for errors
-    cudaError_t err = cudaGetLastError();
+    update_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L, 0, d_ProbNaturalDeath);
+    err = cudaGetLastError();
     if (err != cudaSuccess) {
-        printf("CUDA Error: %s\n", cudaGetErrorString(err));
-        return;
+        printf("ERROR: Update kernel failed: %s\n", cudaGetErrorString(err));
+        cudaFree(d_population);
+        cudaFree(d_rngStates);
+        cudaFree(d_stateCounts);
+        cudaFree(d_newCounts);
+        return -1;
     }
-
     cudaDeviceSynchronize();
+    printf("   SUCCESS: Update kernel executed\n");
 
-    // Copy results back
-    cudaMemcpy(h_population, d_population, gridSize * sizeof(GPUPerson),
-        cudaMemcpyDeviceToHost);
-
-    // Print final state
-    printPopulationState(h_population, L, "Final State After Update");
-
-    // Get counters
-    int h_totals[15] = { 0 };
-    int h_new_cases[15] = { 0 };
+    // Get updated statistics
     getCountersFromDevice(h_totals, h_new_cases);
-
-    // Print statistics
-    printf("\nPopulation Statistics:\n");
-    printf("S: %d (new: %d)\n", h_totals[S], h_new_cases[S]);
-    printf("E: %d (new: %d)\n", h_totals[E], h_new_cases[E]);
-    printf("IP: %d (new: %d)\n", h_totals[IP], h_new_cases[IP]);
-    printf("IA: %d (new: %d)\n", h_totals[IA], h_new_cases[IA]);
-    printf("ISLight: %d (new: %d)\n", h_totals[ISLight], h_new_cases[ISLight]);
-    printf("ISModerate: %d (new: %d)\n", h_totals[ISModerate], h_new_cases[ISModerate]);
-    printf("ISSevere: %d (new: %d)\n", h_totals[ISSevere], h_new_cases[ISSevere]);
-    printf("H: %d (new: %d)\n", h_totals[H], h_new_cases[H]);
-    printf("ICU: %d (new: %d)\n", h_totals[ICU], h_new_cases[ICU]);
-    printf("Recovered: %d (new: %d)\n", h_totals[Recovered], h_new_cases[Recovered]);
-    printf("DeadCovid: %d (new: %d)\n", h_totals[DeadCovid], h_new_cases[DeadCovid]);
-    printf("Dead: %d (new: %d)\n", h_totals[Dead], h_new_cases[Dead]);
-
-    // Verify specific test cases
-    printf("\nTest Case Verification:\n");
-
-    printf("Case 1 (2,2): Health should be E = %d (actual: %d)\n",
-        E, h_population[to1D(2, 2, L)].Health);
-
-    printf("Case 2 (3,3): Health should be IP = %d (actual: %d)\n",
-        IP, h_population[to1D(3, 3, L)].Health);
-
-    printf("Case 3 (4,4): Health should be Recovered = %d (actual: %d)\n",
-        Recovered, h_population[to1D(4, 4, L)].Health);
-
-    printf("Case 4 (5,5): Health should be Dead = %d (actual: %d)\n",
-        Dead, h_population[to1D(5, 5, L)].Health);
-
-    printf("Case 5 (6,6): Health should be S = %d (actual: %d) - Replaced individual\n",
-        S, h_population[to1D(6, 6, L)].Health);
-    printf("  New age: %d years, Death age: %d years\n",
-        h_population[to1D(6, 6, L)].AgeYears,
-        h_population[to1D(6, 6, L)].AgeDeathYears);
-
-    printf("Case 6 (7,7): Exponent should be 0 (actual: %d), Checked should be 0 (actual: %d)\n",
-        h_population[to1D(7, 7, L)].Exponent,
-        h_population[to1D(7, 7, L)].Checked);
-
-    // Check boundaries
-    printf("\nBoundary verification:\n");
-    printf("Corner (0,0) should match (L,L): %d == %d\n",
-        h_population[to1D(0, 0, L)].Health,
-        h_population[to1D(L, L, L)].Health);
-
-    // Show ages of all replaced individuals to verify uniform distribution
-    printf("\nAge Distribution of Replaced Individuals (should be uniform 0-100):\n");
-    printf("Case 5 (6,6): Age = %d years\n", h_population[to1D(6, 6, L)].AgeYears);
-    printf("Case 4 (5,5): Age = %d years (natural death replacement)\n",
-        h_population[to1D(5, 5, L)].AgeYears);
-
-    // Show ages from multiple death replacements
-    for (int i = 2; i <= 5; i++) {
-        printf("Person at (8,%d): Age = %d years\n",
-            i, h_population[to1D(8, i, L)].AgeYears);
-    }
-
-    printf("\nNote: With uniform distribution, ages can be anywhere from 0-100 with equal probability\n");
-    printf("(Unlike demographic distribution where young ages would be more common)\n");
+    printf("   After update:\n");
+    printf("   S: %d (new: %d)\n", h_totals[S], h_new_cases[S]);
+    printf("   IP: %d\n", h_totals[IP]);
 
     // Cleanup
-    delete[] h_population;
+    printf("\n8. Cleaning up...\n");
     cudaFree(d_population);
-    cleanupRNG();
-}
-
-int main() {
-    // Initialize city and GPU constants
-    int city = ROC;
-    setupCityParameters(city);
-    setupGPUConstants();
-
-    // Run the test
-    test_update_kernel();
-
-    // Cleanup
+    cudaFree(d_rngStates);
+    cudaFree(d_stateCounts);
+    cudaFree(d_newCounts);
     cleanupGPUConstants();
+
+    printf("\nMinimal test completed successfully!\n");
 
     return 0;
 }

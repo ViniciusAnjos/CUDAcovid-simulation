@@ -191,30 +191,6 @@ __global__ void update_kernel(GPUPerson* population,
     }
 }
 
-// Kernel to handle periodic boundary conditions
-__global__ void updateBoundaries_kernel(GPUPerson* population, int L) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-
-    // Handle horizontal boundaries
-    if (idx > 0 && idx <= L) {
-        // Top boundary
-        population[to1D(0, idx, L)].Health = population[to1D(L, idx, L)].Health;
-        // Bottom boundary  
-        population[to1D(L + 1, idx, L)].Health = population[to1D(1, idx, L)].Health;
-        // Left boundary
-        population[to1D(idx, 0, L)].Health = population[to1D(idx, L, L)].Health;
-        // Right boundary
-        population[to1D(idx, L + 1, L)].Health = population[to1D(idx, 1, L)].Health;
-    }
-
-    // Handle corners (only thread 0)
-    if (idx == 0) {
-        population[to1D(0, 0, L)].Health = population[to1D(L, L, L)].Health;
-        population[to1D(0, L + 1, L)].Health = population[to1D(L, 1, L)].Health;
-        population[to1D(L + 1, 0, L)].Health = population[to1D(1, L, L)].Health;
-        population[to1D(L + 1, L + 1, L)].Health = population[to1D(1, 1, L)].Health;
-    }
-}
 
 // Host function to get counter values
 __host__ void getCountersFromDevice(int* h_totals, int* h_new_cases) {
