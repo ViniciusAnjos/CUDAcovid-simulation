@@ -1,282 +1,281 @@
-﻿#include <stdio.h>
+﻿// test_ICU_kernel.cu
+#include <stdio.h>
 #include <cuda_runtime.h>
 #include "gpu_define.cuh"
 #include "gpu_person.cuh"
 #include "gpu_utils.cuh"
 #include "gpu_aleat.cuh"
+#include "update_kernel.cuh"  // For counter access
 
-// Include the updated ICU kernel
 #include "ICU_kernel.cuh"
 
+void printICUState(GPUPerson* h_population, int L, const char* title) {
+    printf("\n%s:\n", title);
+    printf("Grid (U=ICU, R=Recovered, C=COVID Death, D=Natural Death, S=Susceptible):\n");
 
+    int icuCount = 0;
+    int recoveredCount = 0;
+    int covidDeathCount = 0;
 
-void test_ICU_kernel_comprehensive() {
-    const int L = 8;  // Larger grid for multiple test cases
+    for (int i = 1; i <= L; i++) {
+        for (int j = 1; j <= L; j++) {
+            int idx = to1D(i, j, L);
+            char symbol = 'S';
+
+            switch (h_population[idx].Health) {
+            case ICU: symbol = 'U'; icuCount++; break;
+            case Recovered: symbol = 'R'; recoveredCount++; break;
+            case DeadCovid: symbol = 'C'; covidDeathCount++; break;
+            case Dead: symbol = 'D'; break;
+            }
+            printf("%c ", symbol);
+        }
+        printf("\n");
+    }
+    printf("Total in ICU: %d, Recovered: %d, COVID Deaths: %d\n",
+        icuCount, recoveredCount, covidDeathCount);
+}
+
+void test_ICU_kernel() {
+    const int L = 10;  // Small grid for testing
     const int gridSize = (L + 2) * (L + 2);
 
-    printf("=== Comprehensive ICU Kernel Test ===\n");
-    printf("Grid size: %dx%d = %d total cells\n", L, L, L * L);
-
-    // Setup GPU constants
-    int city = ROC;  // Use Rocinha parameters
-    setupCityParameters(city);
-    setupGPUConstants();
-
-    // Allocate memory
+    // Allocate and initialize test population
     GPUPerson* h_population = new GPUPerson[gridSize];
     GPUPerson* d_population;
-    checkCudaError(cudaMalloc(&d_population, gridSize * sizeof(GPUPerson)), "Population allocation");
+    cudaMalloc(&d_population, gridSize * sizeof(GPUPerson));
 
-    // Bed counters
-    int* h_hospitalBeds = new int(10);  // Start with 10 hospital beds
-    int* h_icuBeds = new int(8);        // Start with 8 ICU beds
-    int* d_hospitalBeds;
-    int* d_icuBeds;
-    checkCudaError(cudaMalloc(&d_hospitalBeds, sizeof(int)), "Hospital beds allocation");
-    checkCudaError(cudaMalloc(&d_icuBeds, sizeof(int)), "ICU beds allocation");
+    printf("Testing ICU_kernel with %dx%d grid\n", L, L);
 
-    checkCudaError(cudaMemcpy(d_hospitalBeds, h_hospitalBeds, sizeof(int), cudaMemcpyHostToDevice), "Hospital beds copy");
-    checkCudaError(cudaMemcpy(d_icuBeds, h_icuBeds, sizeof(int), cudaMemcpyHostToDevice), "ICU beds copy");
-
-    // Initialize population
-    printf("\nInitializing population...\n");
+    // Initialize all cells
     for (int i = 0; i < gridSize; i++) {
         h_population[i].Health = S;
         h_population[i].Swap = S;
         h_population[i].TimeOnState = 0;
         h_population[i].StateTime = 0;
         h_population[i].Days = 0;
-        h_population[i].AgeYears = 40;  // Default age
-        h_population[i].AgeDeathDays = 365 * 80;  // Die at 80
+        h_population[i].AgeDays = 365 * 30;
+        h_population[i].AgeYears = 30;
+        h_population[i].AgeDeathDays = 365 * 80;
+        h_population[i].AgeDeathYears = 80;
     }
 
-    // Set up comprehensive test cases
+    // Set initial available ICU beds
+    int initialAvailableICUBeds = 10;
+    cudaMemcpyToSymbol(AvailableBedsICU, &initialAvailableICUBeds, sizeof(int));
+
+    printf("\nInitial ICU Resources:\n");
+    printf("Available ICU Beds: %d\n", initialAvailableICUBeds);
+
+    // Set up test cases
     printf("\nSetting up test cases:\n");
 
-    // Case 1: Young ICU patient (high recovery chance)
-    printf("Case 1: Young ICU patient (25yo) ready to transition at (2,2)\n");
-    int idx = to1D(2, 2, L);
-    h_population[idx].Health = ICU;
-    h_population[idx].Swap = ICU;
-    h_population[idx].AgeYears = 25;
-    h_population[idx].StateTime = 10;
-    h_population[idx].TimeOnState = 10;  // Ready to transition
-    h_population[idx].Days = 25 * 365;   // 25 years old
+    // Case 1: Young patient in ICU (better recovery chance)
+    printf("Case 1: Young patient (25yo) ready for outcome at (2,2)\n");
+    h_population[to1D(2, 2, L)].Health = ICU;
+    h_population[to1D(2, 2, L)].Swap = ICU;
+    h_population[to1D(2, 2, L)].AgeYears = 25;
+    h_population[to1D(2, 2, L)].StateTime = 15;
+    h_population[to1D(2, 2, L)].TimeOnState = 15; // Ready for transition
 
-    // Case 2: Middle-aged ICU patient (moderate recovery chance)
-    printf("Case 2: Middle-aged ICU patient (55yo) ready to transition at (3,3)\n");
-    idx = to1D(3, 3, L);
-    h_population[idx].Health = ICU;
-    h_population[idx].Swap = ICU;
-    h_population[idx].AgeYears = 55;
-    h_population[idx].StateTime = 15;
-    h_population[idx].TimeOnState = 15;  // Ready to transition
-    h_population[idx].Days = 55 * 365;
+    // Case 2: Middle-aged patient mid-stay
+    printf("Case 2: Middle-aged patient (50yo) mid-ICU stay at (3,3)\n");
+    h_population[to1D(3, 3, L)].Health = ICU;
+    h_population[to1D(3, 3, L)].Swap = ICU;
+    h_population[to1D(3, 3, L)].AgeYears = 50;
+    h_population[to1D(3, 3, L)].StateTime = 30;
+    h_population[to1D(3, 3, L)].TimeOnState = 10; // Not ready yet
 
-    // Case 3: Elderly ICU patient (low recovery chance)
-    printf("Case 3: Elderly ICU patient (75yo) ready to transition at (4,4)\n");
-    idx = to1D(4, 4, L);
-    h_population[idx].Health = ICU;
-    h_population[idx].Swap = ICU;
-    h_population[idx].AgeYears = 75;
-    h_population[idx].StateTime = 12;
-    h_population[idx].TimeOnState = 12;  // Ready to transition
-    h_population[idx].Days = 75 * 365;
+    // Case 3: Elderly patient ready for outcome (low recovery probability)
+    printf("Case 3: Elderly patient (70yo) ready for outcome at (4,4)\n");
+    h_population[to1D(4, 4, L)].Health = ICU;
+    h_population[to1D(4, 4, L)].Swap = ICU;
+    h_population[to1D(4, 4, L)].AgeYears = 70;
+    h_population[to1D(4, 4, L)].StateTime = 15;
+    h_population[to1D(4, 4, L)].TimeOnState = 15;
 
-    // Case 4: Very elderly ICU patient (very low recovery chance)
-    printf("Case 4: Very elderly ICU patient (85yo) ready to transition at (5,5)\n");
-    idx = to1D(5, 5, L);
-    h_population[idx].Health = ICU;
-    h_population[idx].Swap = ICU;
-    h_population[idx].AgeYears = 85;
-    h_population[idx].StateTime = 8;
-    h_population[idx].TimeOnState = 8;   // Ready to transition
-    h_population[idx].Days = 85 * 365;
+    // Case 4: Very elderly patient ready for outcome
+    printf("Case 4: Very elderly patient (85yo) ready for outcome at (5,5)\n");
+    h_population[to1D(5, 5, L)].Health = ICU;
+    h_population[to1D(5, 5, L)].Swap = ICU;
+    h_population[to1D(5, 5, L)].AgeYears = 85;
+    h_population[to1D(5, 5, L)].StateTime = 15;
+    h_population[to1D(5, 5, L)].TimeOnState = 15;
 
-    // Case 5: ICU patient in middle of treatment
-    printf("Case 5: ICU patient (60yo) in middle of treatment at (6,6)\n");
-    idx = to1D(6, 6, L);
-    h_population[idx].Health = ICU;
-    h_population[idx].Swap = ICU;
-    h_population[idx].AgeYears = 60;
-    h_population[idx].StateTime = 20;
-    h_population[idx].TimeOnState = 5;   // Not ready to transition
-    h_population[idx].Days = 60 * 365;
+    // Case 5: Natural death case
+    printf("Case 5: Natural death case at (6,6)\n");
+    h_population[to1D(6, 6, L)].Health = ICU;
+    h_population[to1D(6, 6, L)].Swap = ICU;
+    h_population[to1D(6, 6, L)].AgeYears = 78;
+    h_population[to1D(6, 6, L)].Days = 85 * 365; // Past death age
+    h_population[to1D(6, 6, L)].AgeDeathDays = 80 * 365;
 
-    // Case 6: Natural death case
-    printf("Case 6: ICU patient (70yo) reaching natural death at (7,7)\n");
-    idx = to1D(7, 7, L);
-    h_population[idx].Health = ICU;
-    h_population[idx].Swap = ICU;
-    h_population[idx].AgeYears = 70;
-    h_population[idx].StateTime = 10;
-    h_population[idx].TimeOnState = 5;
-    h_population[idx].Days = 85 * 365;     // 85 years in days
-    h_population[idx].AgeDeathDays = 80 * 365;  // Should die at 80
+    // Case 6: Another elderly patient
+    printf("Case 6: Another elderly patient (75yo) at (7,7)\n");
+    h_population[to1D(7, 7, L)].Health = ICU;
+    h_population[to1D(7, 7, L)].Swap = ICU;
+    h_population[to1D(7, 7, L)].AgeYears = 75;
+    h_population[to1D(7, 7, L)].StateTime = 15;
+    h_population[to1D(7, 7, L)].TimeOnState = 15;
 
-    // Print recovery probabilities for reference
-    printf("\nExpected Recovery Probabilities:\n");
-    printf("Age 25: ~50%% (ProbRecoveryICUYounger)\n");
-    printf("Age 55: ~50%% (ProbRecoveryICUYounger)\n");
-    printf("Age 75: ~12.5%% (ProbRecoveryICU_70_80)\n");
-    printf("Age 85: ~8.3%% (ProbRecoveryICU_Greater90)\n");
-
-    // Print initial grid state
-    printf("\nInitial Grid State (I=ICU, S=Susceptible):\n");
-    for (int i = 1; i <= L; i++) {
-        for (int j = 1; j <= L; j++) {
-            printf("%c ", h_population[to1D(i, j, L)].Health == ICU ? 'I' : 'S');
-        }
-        printf("\n");
-    }
-
-    printf("\nInitial bed counts: Hospital=%d, ICU=%d\n", *h_hospitalBeds, *h_icuBeds);
+    // Case 7: Very old patient to test multiple outcomes
+    printf("Case 7: Very old patient (90yo) at (8,8)\n");
+    h_population[to1D(8, 8, L)].Health = ICU;
+    h_population[to1D(8, 8, L)].Swap = ICU;
+    h_population[to1D(8, 8, L)].AgeYears = 90;
+    h_population[to1D(8, 8, L)].StateTime = 15;
+    h_population[to1D(8, 8, L)].TimeOnState = 15;
 
     // Copy to device
-    checkCudaError(cudaMemcpy(d_population, h_population, gridSize * sizeof(GPUPerson),
-        cudaMemcpyHostToDevice), "Population copy to device");
+    cudaMemcpy(d_population, h_population, gridSize * sizeof(GPUPerson),
+        cudaMemcpyHostToDevice);
 
     // Setup RNG
-    setupRNG(gridSize);
-
-    // Launch kernel
+    unsigned int* d_rngStates;
+    cudaMalloc(&d_rngStates, gridSize * sizeof(unsigned int));
     int blockSize = 256;
     int numBlocks = (gridSize + blockSize - 1) / blockSize;
-    printf("\nLaunching ICU_kernel with %d blocks, %d threads per block\n", numBlocks, blockSize);
+    unsigned int seed = 893221891;
+    initRNG << <numBlocks, blockSize >> > (d_rngStates, seed, gridSize);
+    cudaDeviceSynchronize();
 
-    ICU_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L, d_hospitalBeds, d_icuBeds);
+    // Print initial state
+    printICUState(h_population, L, "Initial State");
 
-    // Check for errors
+    // Print ICU recovery probabilities for reference
+    printf("\nICU Recovery Probabilities (from original data):\n");
+    printf("Age <60: ~%.3f\n", 0.5);      // Young have 50% recovery in ICU
+    printf("Age 60-70: ~%.3f\n", 0.179);  // From original data
+    printf("Age 70-80: ~%.3f\n", 0.125);  // From original data
+    printf("Age 80-90: ~%.3f\n", 0.104);  // From original data
+    printf("Age >90: ~%.3f\n", 0.083);    // From original data
+
+    // Reset counters
+    resetNewCounters_kernel << <1, 1 >> > ();
+    cudaDeviceSynchronize();
+
+    // Run ICU_kernel
+    printf("\nRunning ICU_kernel...\n");
+    ICU_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
+
     cudaError_t err = cudaGetLastError();
-    checkCudaError(err, "ICU kernel launch");
-    checkCudaError(cudaDeviceSynchronize(), "ICU kernel execution");
+    if (err != cudaSuccess) {
+        printf("CUDA Error: %s\n", cudaGetErrorString(err));
+        return;
+    }
+
+    cudaDeviceSynchronize();
 
     // Copy results back
-    checkCudaError(cudaMemcpy(h_population, d_population, gridSize * sizeof(GPUPerson),
-        cudaMemcpyDeviceToHost), "Population copy from device");
-    checkCudaError(cudaMemcpy(h_hospitalBeds, d_hospitalBeds, sizeof(int),
-        cudaMemcpyDeviceToHost), "Hospital beds copy from device");
-    checkCudaError(cudaMemcpy(h_icuBeds, d_icuBeds, sizeof(int),
-        cudaMemcpyDeviceToHost), "ICU beds copy from device");
+    cudaMemcpy(h_population, d_population, gridSize * sizeof(GPUPerson),
+        cudaMemcpyDeviceToHost);
 
-    // Print final grid state
-    printf("\nFinal Grid State (S=Susceptible, I=ICU, R=Recovered, D=Dead):\n");
+    // Get final bed counts and statistics
+    int finalAvailableICUBeds;
+    cudaMemcpyFromSymbol(&finalAvailableICUBeds, AvailableBedsICU, sizeof(int));
+
+    int h_new_cases[15] = { 0 };
+    int dummy_totals[15] = { 0 };
+    getCountersFromDevice(dummy_totals, h_new_cases);
+
+    // Print final state (showing Swap values)
+    printf("\nFinal State After ICU_kernel (showing Swap values):\n");
+    printf("Grid (U=ICU, R=Recovered, C=COVID Death, D=Natural Death, S=Susceptible):\n");
     for (int i = 1; i <= L; i++) {
         for (int j = 1; j <= L; j++) {
-            char state = 'S';
-            idx = to1D(i, j, L);
+            int idx = to1D(i, j, L);
+            char symbol = 'S';
+
+            // Show Swap values to see transitions
             switch (h_population[idx].Swap) {
-            case ICU: state = 'I'; break;
-            case Recovered: state = 'R'; break;
-            case Dead: state = 'D'; break;
-            case DeadCovid: state = 'C'; break;  // C for COVID death
-            default: state = 'S'; break;
+            case ICU: symbol = 'U'; break;
+            case Recovered: symbol = 'R'; break;
+            case DeadCovid: symbol = 'C'; break;
+            case Dead: symbol = 'D'; break;
             }
-            printf("%c ", state);
+            printf("%c ", symbol);
         }
         printf("\n");
     }
 
-    printf("\nFinal bed counts: Hospital=%d, ICU=%d\n", *h_hospitalBeds, *h_icuBeds);
+    printf("\nResource Changes:\n");
+    printf("ICU Beds: %d → %d (freed: %d)\n",
+        initialAvailableICUBeds, finalAvailableICUBeds,
+        finalAvailableICUBeds - initialAvailableICUBeds);
 
-    // Detailed case analysis
-    printf("\n=== Detailed Case Results ===\n");
+    printf("\nNew Case Counts:\n");
+    printf("New Recovered from ICU: %d\n", h_new_cases[Recovered]);
+    printf("New COVID Deaths in ICU: %d\n", h_new_cases[DeadCovid]);
 
-    struct TestCase {
+    // Print individual case results
+    printf("\nIndividual Case Results:\n");
+    for (int caseNum = 1; caseNum <= 7; caseNum++) {
         int i, j;
-        const char* description;
-        int expectedAge;
-    } cases[] = {
-        {2, 2, "Young patient (25yo)", 25},
-        {3, 3, "Middle-aged patient (55yo)", 55},
-        {4, 4, "Elderly patient (75yo)", 75},
-        {5, 5, "Very elderly patient (85yo)", 85},
-        {6, 6, "Mid-treatment patient (60yo)", 60},
-        {7, 7, "Natural death case (70yo)", 70}
-    };
-
-    int recoveredCount = 0;
-    int diedCovidCount = 0;
-    int diedNaturalCount = 0;
-    int stillInICUCount = 0;
-
-    for (int c = 0; c < 6; c++) {
-        idx = to1D(cases[c].i, cases[c].j, L);
-        printf("\nCase %d - %s at (%d,%d):\n", c + 1, cases[c].description, cases[c].i, cases[c].j);
-        printf("  Age: %d years\n", h_population[idx].AgeYears);
-        printf("  Initial Health: %d\n", h_population[idx].Health);
-        printf("  Final State: %d\n", h_population[idx].Swap);
-        printf("  TimeOnState: %d\n", h_population[idx].TimeOnState);
-        printf("  StateTime: %d\n", h_population[idx].StateTime);
-        printf("  Days: %d, AgeDeathDays: %d\n", h_population[idx].Days, h_population[idx].AgeDeathDays);
-
-        const char* outcome = "Unknown";
-        switch (h_population[idx].Swap) {
-        case Recovered:
-            outcome = "RECOVERED";
-            recoveredCount++;
-            break;
-        case DeadCovid:
-            outcome = "DIED (COVID)";
-            diedCovidCount++;
-            break;
-        case Dead:
-            outcome = "DIED (NATURAL)";
-            diedNaturalCount++;
-            break;
-        case ICU:
-            outcome = "STILL IN ICU";
-            stillInICUCount++;
-            break;
+        switch (caseNum) {
+        case 1: i = 2; j = 2; break;
+        case 2: i = 3; j = 3; break;
+        case 3: i = 4; j = 4; break;
+        case 4: i = 5; j = 5; break;
+        case 5: i = 6; j = 6; break;
+        case 6: i = 7; j = 7; break;
+        case 7: i = 8; j = 8; break;
         }
-        printf("  Outcome: %s\n", outcome);
+
+        int idx = to1D(i, j, L);
+        const char* outcome = "Unknown";
+        if (h_population[idx].Swap == ICU) outcome = "Still in ICU";
+        else if (h_population[idx].Swap == Recovered) outcome = "Recovered";
+        else if (h_population[idx].Swap == DeadCovid) outcome = "Died (COVID)";
+        else if (h_population[idx].Swap == Dead) outcome = "Died (Natural)";
+
+        printf("Case %d (%d,%d): Age %d → %s\n",
+            caseNum, i, j, h_population[idx].AgeYears, outcome);
     }
 
     // Summary statistics
-    printf("\n=== Summary Statistics ===\n");
-    printf("Total ICU patients: 6\n");
-    printf("Recovered: %d\n", recoveredCount);
-    printf("Died from COVID: %d\n", diedCovidCount);
-    printf("Died naturally: %d\n", diedNaturalCount);
-    printf("Still in ICU: %d\n", stillInICUCount);
+    int totalRecovered = 0;
+    int totalDiedCovid = 0;
+    int totalDiedNatural = 0;
+    int stillInICU = 0;
 
-    int bedsFreed = (*h_icuBeds - 8);  // Started with 8, see how many were freed
-    printf("ICU beds freed: %d\n", bedsFreed);
+    for (int i = 1; i <= L; i++) {
+        for (int j = 1; j <= L; j++) {
+            int idx = to1D(i, j, L);
+            if (h_population[idx].Health == ICU) {
+                switch (h_population[idx].Swap) {
+                case Recovered: totalRecovered++; break;
+                case DeadCovid: totalDiedCovid++; break;
+                case Dead: totalDiedNatural++; break;
+                case ICU: stillInICU++; break;
+                }
+            }
+        }
+    }
 
-    // Expected vs actual analysis
-    printf("\n=== Analysis ===\n");
-    if (diedNaturalCount > 0) {
-        printf("✓ Natural death logic working\n");
-    }
-    if (stillInICUCount > 0) {
-        printf("✓ Time-based treatment continuation working\n");
-    }
-    if (recoveredCount + diedCovidCount > 0) {
-        printf("✓ Recovery/death decision logic working\n");
-    }
-    if (bedsFreed == (recoveredCount + diedCovidCount + diedNaturalCount)) {
-        printf("✓ Bed management working correctly\n");
-    }
-    else {
-        printf("⚠ Bed management issue: expected %d freed, got %d\n",
-            recoveredCount + diedCovidCount + diedNaturalCount, bedsFreed);
-    }
+    printf("\nSummary:\n");
+    printf("Total outcomes from 7 ICU patients:\n");
+    printf("- Recovered: %d\n", totalRecovered);
+    printf("- Died from COVID: %d\n", totalDiedCovid);
+    printf("- Died naturally: %d\n", totalDiedNatural);
+    printf("- Still in ICU: %d\n", stillInICU);
 
     // Cleanup
     delete[] h_population;
-    delete h_hospitalBeds;
-    delete h_icuBeds;
     cudaFree(d_population);
-    cudaFree(d_hospitalBeds);
-    cudaFree(d_icuBeds);
-    cleanupRNG();
-    cleanupGPUConstants();
-
-    printf("\n=== Test Completed Successfully ===\n");
+    cudaFree(d_rngStates);
 }
 
 int main() {
-    printf("Starting comprehensive ICU kernel test...\n");
-    test_ICU_kernel_comprehensive();
+    // Initialize city and GPU constants
+    int city = ROC;
+    setupCityParameters(city);
+    setupGPUConstants();
+
+    // Run the test
+    test_ICU_kernel();
+
+    // Cleanup
+    cleanupGPUConstants();
+
     return 0;
 }
