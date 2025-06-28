@@ -100,6 +100,7 @@
     <ClInclude Include="ICU_kernel.cuh" />
     <ClInclude Include="IP_kernel.cuh" />
     <ClInclude Include="IS_kernel.cuh" />
+    <ClInclude Include="output_files.cuh" />
     <ClInclude Include="S_kernel.cuh" />
     <ClInclude Include="I.h" />
     <ClInclude Include="ICU.h" />

@@ -1,4 +1,5 @@
-﻿// covid_simulation_complete.cu
+﻿// Updated covid.cu with complete file output system
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <cuda_runtime.h>
@@ -11,6 +12,7 @@
 #include "gpu_neighbors.cuh"
 #include "update_kernel.cuh"
 #include "gpu_update_boundaries.cuh"
+#include "output_files.cuh"  // Include the new output system
 
 // Include all state kernels
 #include "S_kernel.cuh"
@@ -20,213 +22,112 @@
 #include "H_kernel.cuh"
 #include "ICU_kernel.cuh"
 
+// Arrays for storing simulation results across multiple simulations
+double S_Sum[DAYS + 2] = { 0 };
+double E_Sum[DAYS + 2] = { 0 };
+double IP_Sum[DAYS + 2] = { 0 };
+double IA_Sum[DAYS + 2] = { 0 };
+double ISLight_Sum[DAYS + 2] = { 0 };
+double ISModerate_Sum[DAYS + 2] = { 0 };
+double ISSevere_Sum[DAYS + 2] = { 0 };
+double H_Sum[DAYS + 2] = { 0 };
+double ICU_Sum[DAYS + 2] = { 0 };
+double Recovered_Sum[DAYS + 2] = { 0 };
+double DeadCovid_Sum[DAYS + 2] = { 0 };
+
+double New_S_Sum[DAYS + 2] = { 0 };
+double New_E_Sum[DAYS + 2] = { 0 };
+double New_IP_Sum[DAYS + 2] = { 0 };
+double New_IA_Sum[DAYS + 2] = { 0 };
+double New_ISLight_Sum[DAYS + 2] = { 0 };
+double New_ISModerate_Sum[DAYS + 2] = { 0 };
+double New_ISSevere_Sum[DAYS + 2] = { 0 };
+double New_H_Sum[DAYS + 2] = { 0 };
+double New_ICU_Sum[DAYS + 2] = { 0 };
+double New_Recovered_Sum[DAYS + 2] = { 0 };
+double New_DeadCovid_Sum[DAYS + 2] = { 0 };
+
+// Mean arrays for final output
+double S_Mean[DAYS + 2];
+double E_Mean[DAYS + 2];
+double IP_Mean[DAYS + 2];
+double IA_Mean[DAYS + 2];
+double ISLight_Mean[DAYS + 2];
+double ISModerate_Mean[DAYS + 2];
+double ISSevere_Mean[DAYS + 2];
+double H_Mean[DAYS + 2];
+double ICU_Mean[DAYS + 2];
+double Recovered_Mean[DAYS + 2];
+double DeadCovid_Mean[DAYS + 2];
+
+double New_S_Mean[DAYS + 2];
+double New_E_Mean[DAYS + 2];
+double New_IP_Mean[DAYS + 2];
+double New_IA_Mean[DAYS + 2];
+double New_ISLight_Mean[DAYS + 2];
+double New_ISModerate_Mean[DAYS + 2];
+double New_ISSevere_Mean[DAYS + 2];
+double New_H_Mean[DAYS + 2];
+double New_ICU_Mean[DAYS + 2];
+double New_Recovered_Mean[DAYS + 2];
+double New_DeadCovid_Mean[DAYS + 2];
+
 // Function to run one simulation day
 void runSimulationDay(GPUPerson* d_population, unsigned int* d_rngStates,
     int L, int day, int blockSize, int numBlocks) {
 
-    printf("\n--- Day %d ---\n", day);
-
     // Update boundaries
-    printf("Updating boundaries...\n");
     updateBoundaries_kernel << <numBlocks, blockSize >> > (d_population, L);
     cudaDeviceSynchronize();
 
     // Run state kernels
-    printf("Running S kernel...\n");
     S_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
     cudaDeviceSynchronize();
 
-    printf("Running E kernel...\n");
     E_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
     cudaDeviceSynchronize();
 
-    printf("Running IP kernel...\n");
     IP_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
     cudaDeviceSynchronize();
 
-    printf("Running IS kernel...\n");
     IS_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
     cudaDeviceSynchronize();
 
-    printf("Running H kernel...\n");
     H_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
     cudaDeviceSynchronize();
 
-    printf("Running ICU kernel...\n");
     ICU_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
     cudaDeviceSynchronize();
 
-    // Reset counters for update kernel
+    // Reset counters and run update kernel
     resetCounters_kernel << <1, 1 >> > ();
     resetNewCounters_kernel << <1, 1 >> > ();
     cudaDeviceSynchronize();
 
-    // Run update kernel
-    printf("Running update kernel...\n");
     update_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L, day, d_ProbNaturalDeath);
     cudaDeviceSynchronize();
-
-    // Get statistics
-    int h_totals[15] = { 0 };
-    int h_new_cases[15] = { 0 };
-    getCountersFromDevice(h_totals, h_new_cases);
-
-    // Print key statistics
-    printf("Day %d statistics:\n", day);
-    printf("  S: %d (new: %d)\n", h_totals[S], h_new_cases[S]);
-    printf("  E: %d (new: %d)\n", h_totals[E], h_new_cases[E]);
-    printf("  IP: %d (new: %d)\n", h_totals[IP], h_new_cases[IP]);
-    printf("  IA: %d (new: %d)\n", h_totals[IA], h_new_cases[IA]);
-    printf("  IS (L/M/S): %d/%d/%d\n", h_totals[ISLight], h_totals[ISModerate], h_totals[ISSevere]);
-    printf("  H: %d, ICU: %d\n", h_totals[H], h_totals[ICU]);
-    printf("  Recovered: %d, Deaths: %d\n", h_totals[Recovered], h_totals[DeadCovid]);
-
-    // Reset new counters for next day
-    resetNewCounters_kernel << <1, 1 >> > ();
-    cudaDeviceSynchronize();
-}
-
-// Add this function to check if probability arrays are correctly set
-
-__global__ void checkProbabilities_kernel() {
-    if (threadIdx.x == 0 && blockIdx.x == 0) {
-        printf("\n=== CHECKING PROBABILITY ARRAYS ===\n");
-
-        printf("Recovery probabilities for severe cases:\n");
-        printf("Age 25: %.6f (should be ~0.01)\n", d_ProbRecoverySevere[25]);
-        printf("Age 65: %.6f (should be ~0.00357)\n", d_ProbRecoverySevere[65]);
-        printf("Age 75: %.6f (should be ~0.00250)\n", d_ProbRecoverySevere[75]);
-        printf("Age 85: %.6f (should be ~0.00125)\n", d_ProbRecoverySevere[85]);
-        printf("Age 95: %.6f (should be ~0.00167)\n", d_ProbRecoverySevere[95]);
-
-        printf("\nNatural death probabilities:\n");
-        printf("Age 30: %.6f\n", d_ProbNaturalDeath[30]);
-        printf("Age 60: %.6f\n", d_ProbNaturalDeath[60]);
-        printf("Age 80: %.6f\n", d_ProbNaturalDeath[80]);
-
-        printf("\nAge structure probabilities:\n");
-        printf("Age group 0 (0-4): %.6f\n", d_ProbBirthAge[1]);
-        printf("Age group 17 (80-84): %.6f\n", d_ProbBirthAge[17]);
-        printf("Cumulative prob[0]: %.6f\n", d_SumProbBirthAge[0]);
-        printf("Cumulative prob[17]: %.6f\n", d_SumProbBirthAge[17]);
-    }
-}
-
-void checkGPUProbabilities() {
-    printf("Checking GPU probability arrays...\n");
-    checkProbabilities_kernel << <1, 1 >> > ();
-    cudaDeviceSynchronize();
-}
-
-void testDeathMechanisms() {
-    printf("\n=== TESTING DEATH MECHANISMS ===\n");
-
-    const int L = 10;
-    const int gridSize = (L + 2) * (L + 2);
-
-    GPUPerson* h_population = new GPUPerson[gridSize];
-    GPUPerson* d_population;
-    cudaMalloc(&d_population, gridSize * sizeof(GPUPerson));
-
-    // Initialize with specific test cases
-    for (int i = 0; i < gridSize; i++) {
-        h_population[i].Health = S;
-        h_population[i].Swap = S;
-        h_population[i].AgeYears = 30;
-        h_population[i].Days = 0;
-        h_population[i].AgeDeathDays = 365 * 80;
-        h_population[i].TimeOnState = 0;
-        h_population[i].StateTime = 5;
-    }
-
-    // Force some ISSevere cases with elderly people
-    h_population[to1D(2, 2, L)].Health = ISSevere;
-    h_population[to1D(2, 2, L)].AgeYears = 75;  // Elderly
-    h_population[to1D(2, 2, L)].TimeOnState = 10; // Ready to transition
-    h_population[to1D(2, 2, L)].StateTime = 5;
-
-    h_population[to1D(3, 3, L)].Health = ISSevere;
-    h_population[to1D(3, 3, L)].AgeYears = 85;  // Very elderly
-    h_population[to1D(3, 3, L)].TimeOnState = 10;
-    h_population[to1D(3, 3, L)].StateTime = 5;
-
-    h_population[to1D(4, 4, L)].Health = ISSevere;
-    h_population[to1D(4, 4, L)].AgeYears = 90;  // Extremely elderly
-    h_population[to1D(4, 4, L)].TimeOnState = 10;
-    h_population[to1D(4, 4, L)].StateTime = 5;
-
-    // Force natural death case
-    h_population[to1D(5, 5, L)].Health = S;
-    h_population[to1D(5, 5, L)].Days = 365 * 85;  // 85 years old in days
-    h_population[to1D(5, 5, L)].AgeDeathDays = 365 * 80;  // Should die
-
-    printf("Test setup:\n");
-    printf("- Person (2,2): ISSevere, Age 75, ready to transition\n");
-    printf("- Person (3,3): ISSevere, Age 85, ready to transition\n");
-    printf("- Person (4,4): ISSevere, Age 90, ready to transition\n");
-    printf("- Person (5,5): Natural death case\n");
-
-    // Copy to device
-    cudaMemcpy(d_population, h_population, gridSize * sizeof(GPUPerson), cudaMemcpyHostToDevice);
-
-    // Set hospital beds to 0 to force deaths
-    int zeroBeds = 0;
-    cudaMemcpyToSymbol(AvailableBeds, &zeroBeds, sizeof(int));
-
-    // Setup RNG
-    unsigned int* d_rngStates;
-    cudaMalloc(&d_rngStates, gridSize * sizeof(unsigned int));
-    int blockSize = 256;
-    int numBlocks = (gridSize + blockSize - 1) / blockSize;
-    initRNG << <numBlocks, blockSize >> > (d_rngStates, 12345, gridSize);
-    cudaDeviceSynchronize();
-
-    printf("\nRunning IS_kernel with 0 hospital beds...\n");
-
-    // Run the debug IS kernel
-    IS_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
-    cudaDeviceSynchronize();
-
-    // Copy back and check results
-    cudaMemcpy(h_population, d_population, gridSize * sizeof(GPUPerson), cudaMemcpyDeviceToHost);
-
-    printf("\nResults:\n");
-    printf("Person (2,2): Health=%d, Swap=%d, Age=%d\n",
-        h_population[to1D(2, 2, L)].Health, h_population[to1D(2, 2, L)].Swap, h_population[to1D(2, 2, L)].AgeYears);
-    printf("Person (3,3): Health=%d, Swap=%d, Age=%d\n",
-        h_population[to1D(3, 3, L)].Health, h_population[to1D(3, 3, L)].Swap, h_population[to1D(3, 3, L)].AgeYears);
-    printf("Person (4,4): Health=%d, Swap=%d, Age=%d\n",
-        h_population[to1D(4, 4, L)].Health, h_population[to1D(4, 4, L)].Swap, h_population[to1D(4, 4, L)].AgeYears);
-    printf("Person (5,5): Health=%d, Swap=%d, Days=%d, AgeDeathDays=%d\n",
-        h_population[to1D(5, 5, L)].Health, h_population[to1D(5, 5, L)].Swap,
-        h_population[to1D(5, 5, L)].Days, h_population[to1D(5, 5, L)].AgeDeathDays);
-
-    printf("Expected: Swap should be %d (DeadCovid) or %d (Dead)\n", DeadCovid, Dead);
-
-    // Cleanup
-    delete[] h_population;
-    cudaFree(d_population);
-    cudaFree(d_rngStates);
 }
 
 int main(int argc, char* argv[]) {
-    printf("COVID-19 CUDA Simulation - Complete Version\n");
+    printf("COVID-19 CUDA Simulation - Complete Version with File Output\n");
 
     // Initialize city and GPU constants
-    int city = ROC;  // Rocinha
+    int city = SP;  // Rocinha
     setupCityParameters(city);
     setupGPUConstants();
-    checkGPUProbabilities();
-    testDeathMechanisms();
-    // Simulation parameters
-    int simulationNumber = 1;
-    const int L = 100;  // Grid size
+
+    // Simulation parameters - CHANGE THESE FOR PRODUCTION
+    const int L = 3200;  // Grid size
     const int gridSize = (L + 2) * (L + 2);
     const int N = L * L;
-    const int DAYS_TO_RUN = 1;  // Run for 10 days as a test
+    const int DAYS_TO_RUN = 200;   // Change to 200 for full simulation
+    const int MAXSIM = 10;         // Change to 5 for full averaging
 
     printf("Grid size: %d x %d = %d cells\n", L, L, N);
-    printf("Running for %d days\n", DAYS_TO_RUN);
+    printf("Running for %d days, %d simulations\n", DAYS_TO_RUN, MAXSIM);
+
+    // Initialize output files
+    initializeOutputFiles();
 
     // Allocate device memory
     GPUPerson* d_population;
@@ -236,79 +137,187 @@ int main(int argc, char* argv[]) {
     unsigned int* d_rngStates;
     cudaMalloc(&d_rngStates, gridSize * sizeof(unsigned int));
 
-    unsigned int seed = 893221891 * simulationNumber;
     int blockSize = 256;
     int numBlocks = (gridSize + blockSize - 1) / blockSize;
 
-    initRNG << <numBlocks, blockSize >> > (d_rngStates, seed, gridSize);
-    cudaDeviceSynchronize();
+    // Initialize sum arrays to zero
+    for (int t = 0; t <= DAYS_TO_RUN; t++) {
+        S_Sum[t] = E_Sum[t] = IP_Sum[t] = IA_Sum[t] = 0.0;
+        ISLight_Sum[t] = ISModerate_Sum[t] = ISSevere_Sum[t] = 0.0;
+        H_Sum[t] = ICU_Sum[t] = Recovered_Sum[t] = DeadCovid_Sum[t] = 0.0;
 
-    // Initialize population
-    printf("\nInitializing population...\n");
-    initPopulation_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
-    cudaDeviceSynchronize();
-
-    // Initialize counters
-    int* d_stateCounts, * d_newCounts;
-    cudaMalloc(&d_stateCounts, 15 * sizeof(int));
-    cudaMalloc(&d_newCounts, 15 * sizeof(int));
-
-    initCounters_kernel << <1, 32 >> > (d_stateCounts, d_newCounts, N);
-    cudaDeviceSynchronize();
-
-    // Distribute initial infections
-    printf("Distributing initial infections (5 IP cases)...\n");
-    distributeInitialInfections_kernel << <1, 1 >> > (
-        d_population, d_rngStates, d_stateCounts, d_newCounts, L,
-        0,  // Eini
-        5,  // IPini
-        0,  // IAini
-        0,  // ISLightini
-        0,  // ISModerateini
-        2000   // ISSevereini
-        );
-    cudaDeviceSynchronize();
-
-    // Set available beds
-    int availableBeds = NumberOfHospitalBeds - NumberOfHospitalBeds * AverageOcupationRateBeds;
-    int availableBedsICU = NumberOfICUBeds - NumberOfICUBeds * AverageOcupationRateBedsICU;
-    cudaMemcpyToSymbol(AvailableBeds, &availableBeds, sizeof(int));
-    cudaMemcpyToSymbol(AvailableBedsICU, &availableBedsICU, sizeof(int));
-
-    printf("\nStarting simulation...\n");
-    printf("Available beds: Hospital=%d, ICU=%d\n", availableBeds, availableBedsICU);
-
-    // Run simulation for specified days
-    for (int day = 1; day <= DAYS_TO_RUN; day++) {
-        runSimulationDay(d_population, d_rngStates, L, day, blockSize, numBlocks);
+        New_S_Sum[t] = New_E_Sum[t] = New_IP_Sum[t] = New_IA_Sum[t] = 0.0;
+        New_ISLight_Sum[t] = New_ISModerate_Sum[t] = New_ISSevere_Sum[t] = 0.0;
+        New_H_Sum[t] = New_ICU_Sum[t] = New_Recovered_Sum[t] = New_DeadCovid_Sum[t] = 0.0;
     }
+
+    // Run multiple simulations for averaging
+    for (int simulation = 1; simulation <= MAXSIM; simulation++) {
+        printf("\n=== Simulation %d/%d ===\n", simulation, MAXSIM);
+
+        // Initialize RNG with unique seed per simulation
+        unsigned int seed = 893221891 * simulation;
+        initRNG << <numBlocks, blockSize >> > (d_rngStates, seed, gridSize);
+        cudaDeviceSynchronize();
+
+        // Initialize population
+        initPopulation_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
+        cudaDeviceSynchronize();
+
+        // Initialize counters
+        int* d_stateCounts, * d_newCounts;
+        cudaMalloc(&d_stateCounts, 15 * sizeof(int));
+        cudaMalloc(&d_newCounts, 15 * sizeof(int));
+        initCounters_kernel << <1, 32 >> > (d_stateCounts, d_newCounts, N);
+        cudaDeviceSynchronize();
+
+        // Distribute initial infections
+        distributeInitialInfections_kernel << <1, 1 >> > (
+            d_population, d_rngStates, d_stateCounts, d_newCounts, L,
+            0,  // Eini
+            5,  // IPini
+            0,  // IAini
+            0,  // ISLightini
+            0,  // ISModerateini
+            0   // ISSevereini
+            );
+        cudaDeviceSynchronize();
+
+        // Set available beds
+        int availableBeds = NumberOfHospitalBeds - NumberOfHospitalBeds * AverageOcupationRateBeds;
+        int availableBedsICU = NumberOfICUBeds - NumberOfICUBeds * AverageOcupationRateBedsICU;
+        cudaMemcpyToSymbol(AvailableBeds, &availableBeds, sizeof(int));
+        cudaMemcpyToSymbol(AvailableBedsICU, &availableBedsICU, sizeof(int));
+
+        // Get Day 0 statistics and write to files
+        int h_totals[15] = { 0 };
+        int h_new_cases[15] = { 0 };
+        getCountersFromDevice(h_totals, h_new_cases);
+        writeInitialSimulationData(simulation, h_totals, h_new_cases, N);
+
+        // Add to sum arrays for averaging (Day 0)
+        S_Sum[0] += (double)h_totals[S] / (double)N;
+        E_Sum[0] += (double)h_totals[E] / (double)N;
+        IP_Sum[0] += (double)h_totals[IP] / (double)N;
+        IA_Sum[0] += (double)h_totals[IA] / (double)N;
+        ISLight_Sum[0] += (double)h_totals[ISLight] / (double)N;
+        ISModerate_Sum[0] += (double)h_totals[ISModerate] / (double)N;
+        ISSevere_Sum[0] += (double)h_totals[ISSevere] / (double)N;
+        H_Sum[0] += (double)h_totals[H] / (double)N;
+        ICU_Sum[0] += (double)h_totals[ICU] / (double)N;
+        Recovered_Sum[0] += (double)h_totals[Recovered] / (double)N;
+        DeadCovid_Sum[0] += (double)h_totals[DeadCovid] / (double)N;
+
+        New_S_Sum[0] += (double)h_new_cases[S] / (double)N;
+        New_E_Sum[0] += (double)h_new_cases[E] / (double)N;
+        New_IP_Sum[0] += (double)h_new_cases[IP] / (double)N;
+        New_IA_Sum[0] += (double)h_new_cases[IA] / (double)N;
+        New_ISLight_Sum[0] += (double)h_new_cases[ISLight] / (double)N;
+        New_ISModerate_Sum[0] += (double)h_new_cases[ISModerate] / (double)N;
+        New_ISSevere_Sum[0] += (double)h_new_cases[ISSevere] / (double)N;
+        New_H_Sum[0] += (double)h_new_cases[H] / (double)N;
+        New_ICU_Sum[0] += (double)h_new_cases[ICU] / (double)N;
+        New_Recovered_Sum[0] += (double)h_new_cases[Recovered] / (double)N;
+        New_DeadCovid_Sum[0] += (double)h_new_cases[DeadCovid] / (double)N;
+
+        // Run simulation for specified days
+        for (int day = 1; day <= DAYS_TO_RUN; day++) {
+            runSimulationDay(d_population, d_rngStates, L, day, blockSize, numBlocks);
+
+            // Get statistics
+            getCountersFromDevice(h_totals, h_new_cases);
+            writeDailySimulationData(simulation, day, h_totals, h_new_cases, N);
+
+            // Add to sum arrays for averaging
+            S_Sum[day] += (double)h_totals[S] / (double)N;
+            E_Sum[day] += (double)h_totals[E] / (double)N;
+            IP_Sum[day] += (double)h_totals[IP] / (double)N;
+            IA_Sum[day] += (double)h_totals[IA] / (double)N;
+            ISLight_Sum[day] += (double)h_totals[ISLight] / (double)N;
+            ISModerate_Sum[day] += (double)h_totals[ISModerate] / (double)N;
+            ISSevere_Sum[day] += (double)h_totals[ISSevere] / (double)N;
+            H_Sum[day] += (double)h_totals[H] / (double)N;
+            ICU_Sum[day] += (double)h_totals[ICU] / (double)N;
+            Recovered_Sum[day] += (double)h_totals[Recovered] / (double)N;
+            DeadCovid_Sum[day] += (double)h_totals[DeadCovid] / (double)N;
+
+            New_S_Sum[day] += (double)h_new_cases[S] / (double)N;
+            New_E_Sum[day] += (double)h_new_cases[E] / (double)N;
+            New_IP_Sum[day] += (double)h_new_cases[IP] / (double)N;
+            New_IA_Sum[day] += (double)h_new_cases[IA] / (double)N;
+            New_ISLight_Sum[day] += (double)h_new_cases[ISLight] / (double)N;
+            New_ISModerate_Sum[day] += (double)h_new_cases[ISModerate] / (double)N;
+            New_ISSevere_Sum[day] += (double)h_new_cases[ISSevere] / (double)N;
+            New_H_Sum[day] += (double)h_new_cases[H] / (double)N;
+            New_ICU_Sum[day] += (double)h_new_cases[ICU] / (double)N;
+            New_Recovered_Sum[day] += (double)h_new_cases[Recovered] / (double)N;
+            New_DeadCovid_Sum[day] += (double)h_new_cases[DeadCovid] / (double)N;
+        }
+
+        // Cleanup simulation-specific memory
+        cudaFree(d_stateCounts);
+        cudaFree(d_newCounts);
+    }
+
+    // Calculate means across all simulations
+    for (int t = 0; t <= DAYS_TO_RUN; t++) {
+        S_Mean[t] = S_Sum[t] / (double)MAXSIM;
+        E_Mean[t] = E_Sum[t] / (double)MAXSIM;
+        IP_Mean[t] = IP_Sum[t] / (double)MAXSIM;
+        IA_Mean[t] = IA_Sum[t] / (double)MAXSIM;
+        ISLight_Mean[t] = ISLight_Sum[t] / (double)MAXSIM;
+        ISModerate_Mean[t] = ISModerate_Sum[t] / (double)MAXSIM;
+        ISSevere_Mean[t] = ISSevere_Sum[t] / (double)MAXSIM;
+        H_Mean[t] = H_Sum[t] / (double)MAXSIM;
+        ICU_Mean[t] = ICU_Sum[t] / (double)MAXSIM;
+        Recovered_Mean[t] = Recovered_Sum[t] / (double)MAXSIM;
+        DeadCovid_Mean[t] = DeadCovid_Sum[t] / (double)MAXSIM;
+
+        New_S_Mean[t] = New_S_Sum[t] / (double)MAXSIM;
+        New_E_Mean[t] = New_E_Sum[t] / (double)MAXSIM;
+        New_IP_Mean[t] = New_IP_Sum[t] / (double)MAXSIM;
+        New_IA_Mean[t] = New_IA_Sum[t] / (double)MAXSIM;
+        New_ISLight_Mean[t] = New_ISLight_Sum[t] / (double)MAXSIM;
+        New_ISModerate_Mean[t] = New_ISModerate_Sum[t] / (double)MAXSIM;
+        New_ISSevere_Mean[t] = New_ISSevere_Sum[t] / (double)MAXSIM;
+        New_H_Mean[t] = New_H_Sum[t] / (double)MAXSIM;
+        New_ICU_Mean[t] = New_ICU_Sum[t] / (double)MAXSIM;
+        New_Recovered_Mean[t] = New_Recovered_Sum[t] / (double)MAXSIM;
+        New_DeadCovid_Mean[t] = New_DeadCovid_Sum[t] / (double)MAXSIM;
+    }
+
+    // Write final averaged results to main output files
+    writeFinalAveragedResults(S_Mean, E_Mean, IP_Mean, IA_Mean, ISLight_Mean,
+        ISModerate_Mean, ISSevere_Mean, H_Mean, ICU_Mean,
+        Recovered_Mean, DeadCovid_Mean,
+        New_S_Mean, New_E_Mean, New_IP_Mean, New_IA_Mean,
+        New_ISLight_Mean, New_ISModerate_Mean, New_ISSevere_Mean,
+        New_H_Mean, New_ICU_Mean, New_Recovered_Mean,
+        New_DeadCovid_Mean, DAYS_TO_RUN);
+
+    // Close all output files
+    closeOutputFiles();
 
     // Final statistics
     printf("\n=== Final Statistics ===\n");
-    int h_totals[15] = { 0 };
-    int h_new_cases[15] = { 0 };
-    getCountersFromDevice(h_totals, h_new_cases);
-
-    int totalInfectious = h_totals[ISLight] + h_totals[ISModerate] + h_totals[ISSevere];
-    int totalPopulation = 0;
-    for (int i = 0; i < 15; i++) {
-        totalPopulation += h_totals[i];
-    }
-
-    printf("Total population check: %d (should be close to %d)\n", totalPopulation, N);
-    printf("Total infectious: %d\n", totalInfectious);
-    printf("Total recovered: %d\n", h_totals[Recovered]);
-    printf("Total COVID deaths: %d\n", h_totals[DeadCovid]);
+    int totalInfectious = ISLight_Mean[DAYS_TO_RUN] + ISModerate_Mean[DAYS_TO_RUN] + ISSevere_Mean[DAYS_TO_RUN];
+    printf("Final day statistics (averaged across %d simulations):\n", MAXSIM);
+    printf("Susceptible: %.4f\n", S_Mean[DAYS_TO_RUN]);
+    printf("Exposed: %.4f\n", E_Mean[DAYS_TO_RUN]);
+    printf("Infectious: %.4f\n", (double)totalInfectious);
+    printf("Hospitalized: %.4f\n", H_Mean[DAYS_TO_RUN]);
+    printf("ICU: %.4f\n", ICU_Mean[DAYS_TO_RUN]);
+    printf("Recovered: %.4f\n", Recovered_Mean[DAYS_TO_RUN]);
+    printf("COVID Deaths: %.4f\n", DeadCovid_Mean[DAYS_TO_RUN]);
 
     // Cleanup
     printf("\nCleaning up...\n");
     cudaFree(d_population);
     cudaFree(d_rngStates);
-    cudaFree(d_stateCounts);
-    cudaFree(d_newCounts);
     cleanupGPUConstants();
 
     printf("\nSimulation completed successfully!\n");
+    printf("Output files are ready for analysis.\n");
 
     return 0;
 }

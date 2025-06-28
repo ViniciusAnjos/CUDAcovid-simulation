@@ -1,4 +1,4 @@
-// H_kernel.cuh - Corrected version using global symbols
+// H_kernel.cuh - Corrected version using ProbHtoICU
 __global__ void H_kernel(GPUPerson* population, unsigned int* rngStates, int L) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= (L + 2) * (L + 2)) return;
@@ -31,10 +31,10 @@ __global__ void H_kernel(GPUPerson* population, unsigned int* rngStates, int L) 
                     // Access the global device pointer for recovery probability
                     double recoveryProb = d_ProbRecoveryH[age];
 
-                    // Determine outcome based on recovery probability
+                    // First check: Does patient recover?
                     double rn = generateRandom(myRNG);
                     if (rn < recoveryProb) {
-                        // Patient recovers
+                        // Patient recovers from hospital
                         population[personIdx].Swap = d_Recovered;
 
                         // Free up a hospital bed
@@ -44,15 +44,13 @@ __global__ void H_kernel(GPUPerson* population, unsigned int* rngStates, int L) 
                         atomicAdd(&d_New_Recovered, 1);
                     }
                     else {
-                        // Patient needs ICU - check availability
-                        int currentICUBeds = atomicAdd(&AvailableBedsICU, 0); // Atomic read
-
-                        if (currentICUBeds > 0) {
-                            // Move to ICU if bed is available
+                        // Patient doesn't recover - try to get ICU (matches original logic)
+                        int remainingICUBeds = atomicAdd(&AvailableBedsICU, -1);
+                        if (remainingICUBeds > 0) {
+                            // ICU bed available - move to ICU
                             population[personIdx].Swap = d_ICU;
 
-                            // Allocate ICU bed and free regular hospital bed
-                            atomicAdd(&AvailableBedsICU, -1);
+                            // Free regular hospital bed, ICU bed already allocated
                             atomicAdd(&AvailableBeds, 1);
 
                             // Set time for ICU stay
@@ -63,10 +61,11 @@ __global__ void H_kernel(GPUPerson* population, unsigned int* rngStates, int L) 
                             atomicAdd(&d_New_ICU, 1);
                         }
                         else {
-                            // No ICU bed available, patient dies
+                            // No ICU bed available - patient dies
+                            atomicAdd(&AvailableBedsICU, 1); // Restore ICU count
                             population[personIdx].Swap = d_DeadCovid;
 
-                            // Free up a hospital bed
+                            // Free up hospital bed
                             atomicAdd(&AvailableBeds, 1);
 
                             // Increment new death counter
