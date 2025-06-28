@@ -1,7 +1,4 @@
-
-
-// Initialize the entire population
-// A more robust but simplified initialization kernel
+// Initialize the entire population with proper Brazilian age structure
 __global__ void initPopulation_kernel(GPUPerson* population, unsigned int* rngStates, int L) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= (L + 2) * (L + 2)) return;
@@ -21,12 +18,40 @@ __global__ void initPopulation_kernel(GPUPerson* population, unsigned int* rngSt
         population[idx].Exponent = 0;
         population[idx].Checked = 0;
 
-        // Simplified demographic distribution - just use a uniform distribution
+        // PROPER AGE ASSIGNMENT USING BRAZILIAN DEMOGRAPHIC DATA
+        // This matches the original begin.h implementation
+        int mute = 0;
+        int k = 0;
+        int MaximumAge, MinimumAge;
+
         double rn = generateRandom(myRNG);
-        population[idx].AgeYears = (int)(rn * 90); // Ages 0-90
+
+        // Find the correct age group using cumulative probabilities
+        if (rn <= d_SumProbBirthAge[k]) {
+            mute = 1;
+            MaximumAge = d_AgeMax[k];
+            MinimumAge = d_AgeMin[k];
+        }
+        else {
+            do {
+                if (rn > d_SumProbBirthAge[k] && rn <= d_SumProbBirthAge[k + 1]) {
+                    mute = 1;
+                    MaximumAge = d_AgeMax[k + 1];
+                    MinimumAge = d_AgeMin[k + 1];
+                }
+                else {
+                    mute = 0;
+                    k++;
+                }
+            } while (mute < 1 && k < 18); // Safety check to prevent infinite loop
+        }
+
+        // Assign age within the selected range
+        rn = generateRandom(myRNG);
+        population[idx].AgeYears = (int)(rn * (MaximumAge - MinimumAge) + MinimumAge);
         population[idx].AgeDays = population[idx].AgeYears * 365;
 
-        // Add some randomness to birth day
+        // Add random birthday offset (like original)
         rn = generateRandom(myRNG);
         population[idx].AgeDays += (int)(rn * 365);
 
@@ -35,16 +60,32 @@ __global__ void initPopulation_kernel(GPUPerson* population, unsigned int* rngSt
         population[idx].StateTime = 0;
         population[idx].Days = 0;
 
-        // Simplified death age assignment - older than current age
-        rn = generateRandom(myRNG);
-        // Death age between current age+1 and 100
-        int ageRange = 100 - population[idx].AgeYears;
-        if (ageRange <= 0) ageRange = 1; // Ensure at least 1 year difference
+        // PROPER DEATH AGE ASSIGNMENT using rejection sampling (like original)
+        // Define age of natural death using probability distribution
+        mute = 0;
+        do {
+            rn = generateRandom(myRNG);
+            population[idx].AgeDeathYears = (int)(rn * 100);
 
-        population[idx].AgeDeathYears = population[idx].AgeYears + 1 + (int)(rn * ageRange);
-        if (population[idx].AgeDeathYears > 100) population[idx].AgeDeathYears = 100;
+            rn = generateRandom(myRNG);
+            if (rn < d_ProbNaturalDeath[population[idx].AgeDeathYears]) {
+                mute = 1; // accept this death age
+            }
+            else {
+                mute = 0; // reject, try again
+            }
+        } while (mute < 1);
 
         population[idx].AgeDeathDays = population[idx].AgeDeathYears * 365;
+
+        // Safety check: ensure death age is after current age (like original)
+        if (population[idx].AgeDeathYears < population[idx].AgeYears) {
+            // Swap them if death age is somehow less than current age
+            int temp = population[idx].AgeDeathYears;
+            population[idx].AgeYears = population[idx].AgeDeathYears;
+            population[idx].AgeDeathYears = temp;
+            population[idx].AgeDeathDays = population[idx].AgeDeathYears * 365;
+        }
     }
 }
 
@@ -255,7 +296,7 @@ __global__ void initCounters_kernel(int* stateCounts, int* newCounts, int N) {
     int idx = threadIdx.x;
 
     // Initialize all counters to 0
-    if (idx < 15) { // 11 different states
+    if (idx < 15) { // 15 different states
         stateCounts[idx] = 0;
         newCounts[idx] = 0;
 

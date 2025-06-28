@@ -86,6 +86,129 @@ void runSimulationDay(GPUPerson* d_population, unsigned int* d_rngStates,
     cudaDeviceSynchronize();
 }
 
+// Add this function to check if probability arrays are correctly set
+
+__global__ void checkProbabilities_kernel() {
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
+        printf("\n=== CHECKING PROBABILITY ARRAYS ===\n");
+
+        printf("Recovery probabilities for severe cases:\n");
+        printf("Age 25: %.6f (should be ~0.01)\n", d_ProbRecoverySevere[25]);
+        printf("Age 65: %.6f (should be ~0.00357)\n", d_ProbRecoverySevere[65]);
+        printf("Age 75: %.6f (should be ~0.00250)\n", d_ProbRecoverySevere[75]);
+        printf("Age 85: %.6f (should be ~0.00125)\n", d_ProbRecoverySevere[85]);
+        printf("Age 95: %.6f (should be ~0.00167)\n", d_ProbRecoverySevere[95]);
+
+        printf("\nNatural death probabilities:\n");
+        printf("Age 30: %.6f\n", d_ProbNaturalDeath[30]);
+        printf("Age 60: %.6f\n", d_ProbNaturalDeath[60]);
+        printf("Age 80: %.6f\n", d_ProbNaturalDeath[80]);
+
+        printf("\nAge structure probabilities:\n");
+        printf("Age group 0 (0-4): %.6f\n", d_ProbBirthAge[1]);
+        printf("Age group 17 (80-84): %.6f\n", d_ProbBirthAge[17]);
+        printf("Cumulative prob[0]: %.6f\n", d_SumProbBirthAge[0]);
+        printf("Cumulative prob[17]: %.6f\n", d_SumProbBirthAge[17]);
+    }
+}
+
+void checkGPUProbabilities() {
+    printf("Checking GPU probability arrays...\n");
+    checkProbabilities_kernel << <1, 1 >> > ();
+    cudaDeviceSynchronize();
+}
+
+void testDeathMechanisms() {
+    printf("\n=== TESTING DEATH MECHANISMS ===\n");
+
+    const int L = 10;
+    const int gridSize = (L + 2) * (L + 2);
+
+    GPUPerson* h_population = new GPUPerson[gridSize];
+    GPUPerson* d_population;
+    cudaMalloc(&d_population, gridSize * sizeof(GPUPerson));
+
+    // Initialize with specific test cases
+    for (int i = 0; i < gridSize; i++) {
+        h_population[i].Health = S;
+        h_population[i].Swap = S;
+        h_population[i].AgeYears = 30;
+        h_population[i].Days = 0;
+        h_population[i].AgeDeathDays = 365 * 80;
+        h_population[i].TimeOnState = 0;
+        h_population[i].StateTime = 5;
+    }
+
+    // Force some ISSevere cases with elderly people
+    h_population[to1D(2, 2, L)].Health = ISSevere;
+    h_population[to1D(2, 2, L)].AgeYears = 75;  // Elderly
+    h_population[to1D(2, 2, L)].TimeOnState = 10; // Ready to transition
+    h_population[to1D(2, 2, L)].StateTime = 5;
+
+    h_population[to1D(3, 3, L)].Health = ISSevere;
+    h_population[to1D(3, 3, L)].AgeYears = 85;  // Very elderly
+    h_population[to1D(3, 3, L)].TimeOnState = 10;
+    h_population[to1D(3, 3, L)].StateTime = 5;
+
+    h_population[to1D(4, 4, L)].Health = ISSevere;
+    h_population[to1D(4, 4, L)].AgeYears = 90;  // Extremely elderly
+    h_population[to1D(4, 4, L)].TimeOnState = 10;
+    h_population[to1D(4, 4, L)].StateTime = 5;
+
+    // Force natural death case
+    h_population[to1D(5, 5, L)].Health = S;
+    h_population[to1D(5, 5, L)].Days = 365 * 85;  // 85 years old in days
+    h_population[to1D(5, 5, L)].AgeDeathDays = 365 * 80;  // Should die
+
+    printf("Test setup:\n");
+    printf("- Person (2,2): ISSevere, Age 75, ready to transition\n");
+    printf("- Person (3,3): ISSevere, Age 85, ready to transition\n");
+    printf("- Person (4,4): ISSevere, Age 90, ready to transition\n");
+    printf("- Person (5,5): Natural death case\n");
+
+    // Copy to device
+    cudaMemcpy(d_population, h_population, gridSize * sizeof(GPUPerson), cudaMemcpyHostToDevice);
+
+    // Set hospital beds to 0 to force deaths
+    int zeroBeds = 0;
+    cudaMemcpyToSymbol(AvailableBeds, &zeroBeds, sizeof(int));
+
+    // Setup RNG
+    unsigned int* d_rngStates;
+    cudaMalloc(&d_rngStates, gridSize * sizeof(unsigned int));
+    int blockSize = 256;
+    int numBlocks = (gridSize + blockSize - 1) / blockSize;
+    initRNG << <numBlocks, blockSize >> > (d_rngStates, 12345, gridSize);
+    cudaDeviceSynchronize();
+
+    printf("\nRunning IS_kernel with 0 hospital beds...\n");
+
+    // Run the debug IS kernel
+    IS_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
+    cudaDeviceSynchronize();
+
+    // Copy back and check results
+    cudaMemcpy(h_population, d_population, gridSize * sizeof(GPUPerson), cudaMemcpyDeviceToHost);
+
+    printf("\nResults:\n");
+    printf("Person (2,2): Health=%d, Swap=%d, Age=%d\n",
+        h_population[to1D(2, 2, L)].Health, h_population[to1D(2, 2, L)].Swap, h_population[to1D(2, 2, L)].AgeYears);
+    printf("Person (3,3): Health=%d, Swap=%d, Age=%d\n",
+        h_population[to1D(3, 3, L)].Health, h_population[to1D(3, 3, L)].Swap, h_population[to1D(3, 3, L)].AgeYears);
+    printf("Person (4,4): Health=%d, Swap=%d, Age=%d\n",
+        h_population[to1D(4, 4, L)].Health, h_population[to1D(4, 4, L)].Swap, h_population[to1D(4, 4, L)].AgeYears);
+    printf("Person (5,5): Health=%d, Swap=%d, Days=%d, AgeDeathDays=%d\n",
+        h_population[to1D(5, 5, L)].Health, h_population[to1D(5, 5, L)].Swap,
+        h_population[to1D(5, 5, L)].Days, h_population[to1D(5, 5, L)].AgeDeathDays);
+
+    printf("Expected: Swap should be %d (DeadCovid) or %d (Dead)\n", DeadCovid, Dead);
+
+    // Cleanup
+    delete[] h_population;
+    cudaFree(d_population);
+    cudaFree(d_rngStates);
+}
+
 int main(int argc, char* argv[]) {
     printf("COVID-19 CUDA Simulation - Complete Version\n");
 
@@ -93,13 +216,14 @@ int main(int argc, char* argv[]) {
     int city = ROC;  // Rocinha
     setupCityParameters(city);
     setupGPUConstants();
-
+    checkGPUProbabilities();
+    testDeathMechanisms();
     // Simulation parameters
     int simulationNumber = 1;
-    const int L = 632;  // Grid size
+    const int L = 100;  // Grid size
     const int gridSize = (L + 2) * (L + 2);
     const int N = L * L;
-    const int DAYS_TO_RUN = 200;  // Run for 10 days as a test
+    const int DAYS_TO_RUN = 1;  // Run for 10 days as a test
 
     printf("Grid size: %d x %d = %d cells\n", L, L, N);
     printf("Running for %d days\n", DAYS_TO_RUN);
@@ -141,7 +265,7 @@ int main(int argc, char* argv[]) {
         0,  // IAini
         0,  // ISLightini
         0,  // ISModerateini
-        0   // ISSevereini
+        2000   // ISSevereini
         );
     cudaDeviceSynchronize();
 

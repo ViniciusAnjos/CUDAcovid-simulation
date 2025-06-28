@@ -158,8 +158,8 @@ __host__ void setupCityParameters(int city) {
     }
 
 
-    NumberOfHospitalBeds = BEDSPOP * N;
-    NumberOfICUBeds = ICUPOP * N;
+    NumberOfHospitalBeds = 0;// BEDSPOP* N;
+    NumberOfICUBeds = 0;// ICUPOP* N;
 
     printf("\nCalculated parameters:\n");
     printf("Population (N = L*L): %d\n", N);

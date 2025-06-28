@@ -21,7 +21,7 @@ const double MAXNUM = 4294967295.;             /* for 32 bits compilers */
 const int DAYS = 400;        /* Number of days simulated */
 const int MAXSIM = 1;        /* Number of simulations to evaluate averages */
 
-const int L = 3200;
+const int L = 100;
 const int N = L * L;
 
 //cities

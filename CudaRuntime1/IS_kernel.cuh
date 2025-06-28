@@ -1,4 +1,4 @@
-__global__ void IS_kernel(GPUPerson* population, unsigned int* rngStates, int L) {
+﻿__global__ void IS_kernel(GPUPerson* population, unsigned int* rngStates, int L) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     
     int i, j;
