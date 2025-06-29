@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
     const int L = 3200;  // Grid size
     const int gridSize = (L + 2) * (L + 2);
     const int N = L * L;
-    const int DAYS_TO_RUN = 200;   // Change to 200 for full simulation
+    const int DAYS_TO_RUN = 400;   // Change to 200 for full simulation
     const int MAXSIM = 10;         // Change to 5 for full averaging
 
     printf("Grid size: %d x %d = %d cells\n", L, L, N);
@@ -221,7 +221,7 @@ int main(int argc, char* argv[]) {
         New_DeadCovid_Sum[0] += (double)h_new_cases[DeadCovid] / (double)N;
 
         // Run simulation for specified days
-        for (int day = 1; day <= DAYS_TO_RUN; day++) {
+        for (int day = 0; day <= DAYS_TO_RUN; day++) {
             runSimulationDay(d_population, d_rngStates, L, day, blockSize, numBlocks);
 
             // Get statistics

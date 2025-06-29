@@ -1,6 +1,5 @@
 // output_files.cuh - Complete file output system matching original C code
 
-#include <stdio.h>
 
 // File pointers for output files (matching original covid.c)
 FILE* fp;                    // epidemicsprevalence.dat
@@ -21,7 +20,11 @@ double TotalInfectiousNew;
 // Host function to initialize output files
 void initializeOutputFiles() {
     // Remove any existing data files (matching original)
-    system("rm *.dat");
+    #ifdef _WIN32
+        system("del *.dat");
+    #else
+        system("rm *.dat");
+    #endif
 
     // Open main output files (matching original covid.c)
     fp = fopen("epidemicsprevalence.dat", "w");
