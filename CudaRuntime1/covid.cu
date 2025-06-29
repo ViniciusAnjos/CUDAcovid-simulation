@@ -1,4 +1,5 @@
-﻿// Updated covid.cu with complete file output system
+﻿// Corrected covid.cu - Using existing output_files.cuh system
+// Fixes for Day 0 double-counting and DeadCovid initialization issues
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +13,7 @@
 #include "gpu_neighbors.cuh"
 #include "update_kernel.cuh"
 #include "gpu_update_boundaries.cuh"
-#include "output_files.cuh"  // Include the new output system
+#include "output_files.cuh"  // Use existing output system
 
 // Include all state kernels
 #include "S_kernel.cuh"
@@ -116,7 +117,7 @@ int main(int argc, char* argv[]) {
     setupCityParameters(city);
     setupGPUConstants();
 
-    // Simulation parameters - CHANGE THESE FOR PRODUCTION
+    // Simulation parameters
     const int L = 3200;  // Grid size
     const int gridSize = (L + 2) * (L + 2);
     const int N = L * L;
@@ -126,7 +127,7 @@ int main(int argc, char* argv[]) {
     printf("Grid size: %d x %d = %d cells\n", L, L, N);
     printf("Running for %d days, %d simulations\n", DAYS_TO_RUN, MAXSIM);
 
-    // Initialize output files
+    // Initialize output files using existing system
     initializeOutputFiles();
 
     // Allocate device memory
@@ -140,7 +141,7 @@ int main(int argc, char* argv[]) {
     int blockSize = 256;
     int numBlocks = (gridSize + blockSize - 1) / blockSize;
 
-    // Initialize sum arrays to zero
+    // CORRECTED: Initialize sum arrays to zero
     for (int t = 0; t <= DAYS_TO_RUN; t++) {
         S_Sum[t] = E_Sum[t] = IP_Sum[t] = IA_Sum[t] = 0.0;
         ISLight_Sum[t] = ISModerate_Sum[t] = ISSevere_Sum[t] = 0.0;
@@ -154,6 +155,11 @@ int main(int argc, char* argv[]) {
     // Run multiple simulations for averaging
     for (int simulation = 1; simulation <= MAXSIM; simulation++) {
         printf("\n=== Simulation %d/%d ===\n", simulation, MAXSIM);
+
+        // CORRECTED: Reset all counters before each simulation
+        resetCounters_kernel << <1, 1 >> > ();
+        resetNewCounters_kernel << <1, 1 >> > ();
+        cudaDeviceSynchronize();
 
         // Initialize RNG with unique seed per simulation
         unsigned int seed = 893221891 * simulation;
@@ -189,13 +195,13 @@ int main(int argc, char* argv[]) {
         cudaMemcpyToSymbol(AvailableBeds, &availableBeds, sizeof(int));
         cudaMemcpyToSymbol(AvailableBedsICU, &availableBedsICU, sizeof(int));
 
-        // Get Day 0 statistics and write to files
+        // CORRECTED: Get Day 0 statistics ONCE and write to files using existing system
         int h_totals[15] = { 0 };
         int h_new_cases[15] = { 0 };
         getCountersFromDevice(h_totals, h_new_cases);
         writeInitialSimulationData(simulation, h_totals, h_new_cases, N);
 
-        // Add to sum arrays for averaging (Day 0)
+        // CORRECTED: Add to sum arrays for averaging (Day 0 ONLY ONCE)
         S_Sum[0] += (double)h_totals[S] / (double)N;
         E_Sum[0] += (double)h_totals[E] / (double)N;
         IP_Sum[0] += (double)h_totals[IP] / (double)N;
@@ -220,8 +226,8 @@ int main(int argc, char* argv[]) {
         New_Recovered_Sum[0] += (double)h_new_cases[Recovered] / (double)N;
         New_DeadCovid_Sum[0] += (double)h_new_cases[DeadCovid] / (double)N;
 
-        // Run simulation for specified days
-        for (int day = 0; day <= DAYS_TO_RUN; day++) {
+        // CORRECTED: Run simulation starting from Day 1 (not Day 0 to avoid double-counting)
+        for (int day = 1; day <= DAYS_TO_RUN; day++) {
             runSimulationDay(d_population, d_rngStates, L, day, blockSize, numBlocks);
 
             // Get statistics
@@ -286,7 +292,7 @@ int main(int argc, char* argv[]) {
         New_DeadCovid_Mean[t] = New_DeadCovid_Sum[t] / (double)MAXSIM;
     }
 
-    // Write final averaged results to main output files
+    // Write final averaged results using existing output system
     writeFinalAveragedResults(S_Mean, E_Mean, IP_Mean, IA_Mean, ISLight_Mean,
         ISModerate_Mean, ISSevere_Mean, H_Mean, ICU_Mean,
         Recovered_Mean, DeadCovid_Mean,
@@ -295,16 +301,16 @@ int main(int argc, char* argv[]) {
         New_H_Mean, New_ICU_Mean, New_Recovered_Mean,
         New_DeadCovid_Mean, DAYS_TO_RUN);
 
-    // Close all output files
+    // Close all output files using existing system
     closeOutputFiles();
 
     // Final statistics
     printf("\n=== Final Statistics ===\n");
-    int totalInfectious = ISLight_Mean[DAYS_TO_RUN] + ISModerate_Mean[DAYS_TO_RUN] + ISSevere_Mean[DAYS_TO_RUN];
+    double totalInfectious = ISLight_Mean[DAYS_TO_RUN] + ISModerate_Mean[DAYS_TO_RUN] + ISSevere_Mean[DAYS_TO_RUN];
     printf("Final day statistics (averaged across %d simulations):\n", MAXSIM);
     printf("Susceptible: %.4f\n", S_Mean[DAYS_TO_RUN]);
     printf("Exposed: %.4f\n", E_Mean[DAYS_TO_RUN]);
-    printf("Infectious: %.4f\n", (double)totalInfectious);
+    printf("Infectious: %.4f\n", totalInfectious);
     printf("Hospitalized: %.4f\n", H_Mean[DAYS_TO_RUN]);
     printf("ICU: %.4f\n", ICU_Mean[DAYS_TO_RUN]);
     printf("Recovered: %.4f\n", Recovered_Mean[DAYS_TO_RUN]);
