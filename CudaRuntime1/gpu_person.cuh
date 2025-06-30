@@ -17,6 +17,7 @@ struct Individual {
     int Isolation;
     int Exponent;
     int Checked;
+    int PatientZeroID;
 };
 
 struct __align__(16) GPUPerson {
@@ -33,6 +34,7 @@ struct __align__(16) GPUPerson {
     int Isolation;
     int Exponent;
     int Checked;
+    int PatientZeroID;
 };
 
 // Memory management functions

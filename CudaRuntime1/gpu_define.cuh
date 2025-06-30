@@ -5,7 +5,7 @@
 //cities(ROC);
 
 
-
+#define PATIENT_ZERO_ONLY_MODE 1  
 
 // Error checking function
 void checkCudaError(cudaError_t error, const char* msg) {
@@ -117,7 +117,7 @@ __host__ void setupCityParameters(int city) {
         Density = HIGH;
         BEDSPOP = 0.00247452;
         ICUPOP = 0.00043782;
-        MaxRandomContacts = 2.5;
+        MaxRandomContacts = 19.5;
         MinRandomContacts = 1.5;
         printf("Selected city: São Paulo\n");
         break;

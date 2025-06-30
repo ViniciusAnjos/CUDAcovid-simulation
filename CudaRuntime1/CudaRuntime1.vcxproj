@@ -82,6 +82,7 @@
   <ItemGroup>
     <ClInclude Include="agestructure.h" />
     <ClInclude Include="begin.h" />
+    <ClInclude Include="calibration.cuh" />
     <ClInclude Include="cities.h" />
     <ClInclude Include="death.h" />
     <ClInclude Include="define.h" />

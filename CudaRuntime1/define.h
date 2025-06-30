@@ -41,7 +41,7 @@ const int IsolationYes = 1;
 const int IsolationNo = 0;
 
 /** Beta for 1000 average and r0 = 3.5**/
-const double Beta = 0.0658;
+const double Beta = 0.3;
 
 const double AverageOcupationRateBeds = 0.5;     // average ocupation rate of hospital beds due to others diseases
 const double AverageOcupationRateBedsICU = 0.5;  // average ocupation rate of hospital beds due to others diseases

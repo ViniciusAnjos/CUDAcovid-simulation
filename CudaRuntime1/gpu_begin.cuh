@@ -1,90 +1,80 @@
-// Initialize the entire population with proper Brazilian age structure
+
+
+
+// Initialize population with age distribution and health states
 __global__ void initPopulation_kernel(GPUPerson* population, unsigned int* rngStates, int L) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= (L + 2) * (L + 2)) return;
+    int gridSize = (L + 2) * (L + 2);
 
-    int i, j;
-    to2D(idx, L, i, j);
-
-    // Skip boundary cells
-    if (i > 0 && i <= L && j > 0 && j <= L) {
-        // Get the RNG state for this thread
+    if (idx < gridSize) {
         unsigned int* myRNG = &rngStates[idx];
+        int i, j;
+        to2D(idx, L, i, j);
 
-        // Initialize as Susceptible
+        // Initialize all population as susceptible
         population[idx].Health = d_S;
         population[idx].Swap = d_S;
+        population[idx].PatientZeroID = 0;  // Initialize everyone as non-patient-zero
+
+        // Initialize other fields
+        population[idx].Gender = 0;
         population[idx].Isolation = d_IsolationNo;
         population[idx].Exponent = 0;
         population[idx].Checked = 0;
 
-        // PROPER AGE ASSIGNMENT USING BRAZILIAN DEMOGRAPHIC DATA
-        // This matches the original begin.h implementation
-        int mute = 0;
-        int k = 0;
-        int MaximumAge, MinimumAge;
-
-        double rn = generateRandom(myRNG);
-
-        // Find the correct age group using cumulative probabilities
-        if (rn <= d_SumProbBirthAge[k]) {
-            mute = 1;
-            MaximumAge = d_AgeMax[k];
-            MinimumAge = d_AgeMin[k];
-        }
-        else {
+        // Only initialize inner grid cells (not boundaries)
+        if (i > 0 && i <= L && j > 0 && j <= L) {
+            // Age assignment using birth probability distribution
+            int mute = 0;
+            double rn;
             do {
-                if (rn > d_SumProbBirthAge[k] && rn <= d_SumProbBirthAge[k + 1]) {
-                    mute = 1;
-                    MaximumAge = d_AgeMax[k + 1];
-                    MinimumAge = d_AgeMin[k + 1];
+                rn = generateRandom(myRNG);
+                population[idx].AgeYears = (int)(rn * 100);
+
+                rn = generateRandom(myRNG);
+                if (rn < d_ProbBirthAge[population[idx].AgeYears]) {
+                    mute = 1; // accept this age
                 }
                 else {
-                    mute = 0;
-                    k++;
+                    mute = 0; // reject, try again
                 }
-            } while (mute < 1 && k < 18); // Safety check to prevent infinite loop
-        }
+            } while (mute < 1);
 
-        // Assign age within the selected range
-        rn = generateRandom(myRNG);
-        population[idx].AgeYears = (int)(rn * (MaximumAge - MinimumAge) + MinimumAge);
-        population[idx].AgeDays = population[idx].AgeYears * 365;
-
-        // Add random birthday offset (like original)
-        rn = generateRandom(myRNG);
-        population[idx].AgeDays += (int)(rn * 365);
-
-        // Initialize state timers
-        population[idx].TimeOnState = 0;
-        population[idx].StateTime = 0;
-        population[idx].Days = 0;
-
-        // PROPER DEATH AGE ASSIGNMENT using rejection sampling (like original)
-        // Define age of natural death using probability distribution
-        mute = 0;
-        do {
+            // Random age in days within the year
             rn = generateRandom(myRNG);
-            population[idx].AgeDeathYears = (int)(rn * 100);
+            population[idx].AgeDays += (int)(rn * 365);
 
-            rn = generateRandom(myRNG);
-            if (rn < d_ProbNaturalDeath[population[idx].AgeDeathYears]) {
-                mute = 1; // accept this death age
-            }
-            else {
-                mute = 0; // reject, try again
-            }
-        } while (mute < 1);
+            // Initialize state timers
+            population[idx].TimeOnState = 0;
+            population[idx].StateTime = 0;
+            population[idx].Days = 0;
 
-        population[idx].AgeDeathDays = population[idx].AgeDeathYears * 365;
+            // PROPER DEATH AGE ASSIGNMENT using rejection sampling (like original)
+            // Define age of natural death using probability distribution
+            mute = 0;
+            do {
+                rn = generateRandom(myRNG);
+                population[idx].AgeDeathYears = (int)(rn * 100);
 
-        // Safety check: ensure death age is after current age (like original)
-        if (population[idx].AgeDeathYears < population[idx].AgeYears) {
-            // Swap them if death age is somehow less than current age
-            int temp = population[idx].AgeDeathYears;
-            population[idx].AgeYears = population[idx].AgeDeathYears;
-            population[idx].AgeDeathYears = temp;
+                rn = generateRandom(myRNG);
+                if (rn < d_ProbNaturalDeath[population[idx].AgeDeathYears]) {
+                    mute = 1; // accept this death age
+                }
+                else {
+                    mute = 0; // reject, try again
+                }
+            } while (mute < 1);
+
             population[idx].AgeDeathDays = population[idx].AgeDeathYears * 365;
+
+            // Safety check: ensure death age is after current age (like original)
+            if (population[idx].AgeDeathYears < population[idx].AgeYears) {
+                // Swap them if death age is somehow less than current age
+                int temp = population[idx].AgeDeathYears;
+                population[idx].AgeYears = population[idx].AgeDeathYears;
+                population[idx].AgeDeathYears = temp;
+                population[idx].AgeDeathDays = population[idx].AgeDeathYears * 365;
+            }
         }
     }
 }
@@ -137,8 +127,12 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
         atomicAdd(&newCounts[d_E], 1);
     }
 
-    // Distribute IP infections
-    for (int k = 0; k < IPini; k++) {
+    // Distribute IP infections (Patient Zero mode modification)
+#ifdef PATIENT_ZERO_ONLY_MODE
+    for (int k = 0; k < 1; k++) {  // Force exactly 1 IP case
+#else
+    for (int k = 0; k < IPini; k++) {  // Normal mode
+#endif
         int i, j, personIdx;
 
         // Find a susceptible person
@@ -160,6 +154,14 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
         population[personIdx].StateTime = (int)(rn * (d_MaxIP - d_MinIP) + d_MinIP);
 
         population[personIdx].Isolation = d_IsolationNo;
+
+#ifdef PATIENT_ZERO_ONLY_MODE
+        if (k == 0) {
+            population[personIdx].PatientZeroID = 1;  // Mark as patient zero
+        }
+#else
+        population[personIdx].PatientZeroID = 1;  // In normal mode, all can infect
+#endif
 
         // Update counters
         atomicAdd(&stateCounts[d_S], -1);
@@ -287,22 +289,22 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
         atomicAdd(&newCounts[d_ISSevere], 1);
     }
 
-    // Save RNG state back
+    // Save updated RNG state
     rngStates[0] = localState;
-}
+    }
 
-// Initialize counters for tracking states
+// Initialize counters kernel
 __global__ void initCounters_kernel(int* stateCounts, int* newCounts, int N) {
     int idx = threadIdx.x;
 
-    // Initialize all counters to 0
-    if (idx < 15) { // 15 different states
-        stateCounts[idx] = 0;
-        newCounts[idx] = 0;
-
-        // Set initial S count to total population
+    if (idx < 15) {
         if (idx == d_S) {
-            stateCounts[d_S] = N; // All start as susceptible
+            stateCounts[idx] = N;  // All start as susceptible
         }
+        else {
+            stateCounts[idx] = 0;
+        }
+        newCounts[idx] = 0;
     }
 }
+

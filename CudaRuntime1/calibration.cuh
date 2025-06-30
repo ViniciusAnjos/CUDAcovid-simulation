@@ -118,11 +118,11 @@ int main(int argc, char* argv[]) {
     setupGPUConstants();
 
     // Simulation parameters
-    const int L = 3355;  // Grid size
+    const int L = 3200;  // Grid size
     const int gridSize = (L + 2) * (L + 2);
     const int N = L * L;
     const int DAYS_TO_RUN = 400;   // Change to 200 for full simulation
-    const int MAXSIM = 1;         // Change to 5 for full averaging
+    const int MAXSIM = 10;         // Change to 5 for full averaging
 
     printf("Grid size: %d x %d = %d cells\n", L, L, N);
     printf("Running for %d days, %d simulations\n", DAYS_TO_RUN, MAXSIM);
@@ -311,9 +311,14 @@ int main(int argc, char* argv[]) {
     // Final statistics
     printf("\n=== Final Statistics ===\n");
     double totalInfectious = ISLight_Mean[DAYS_TO_RUN] + ISModerate_Mean[DAYS_TO_RUN] + ISSevere_Mean[DAYS_TO_RUN];
-
+    printf("Final day statistics (averaged across %d simulations):\n", MAXSIM);
+    printf("Susceptible: %.4f\n", S_Mean[DAYS_TO_RUN]);
+    printf("Exposed: %.4f\n", E_Mean[DAYS_TO_RUN]);
     printf("Infectious: %.4f\n", totalInfectious);
-
+    printf("Hospitalized: %.4f\n", H_Mean[DAYS_TO_RUN]);
+    printf("ICU: %.4f\n", ICU_Mean[DAYS_TO_RUN]);
+    printf("Recovered: %.4f\n", Recovered_Mean[DAYS_TO_RUN]);
+    printf("COVID Deaths: %.4f\n", DeadCovid_Mean[DAYS_TO_RUN]);
 
     // Cleanup
     printf("\nCleaning up...\n");
