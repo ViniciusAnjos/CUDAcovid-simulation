@@ -28,6 +28,39 @@ __device__ int d_New_Recovered;
 __device__ int d_New_DeadCovid;
 __device__ int d_New_Dead;
 
+__global__ void initSimulationCounters_kernel(int N) {
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
+        // Initialize prevalence counters
+        d_S_Total = N;  // Start with full susceptible population
+        d_E_Total = 0;
+        d_IP_Total = 0;
+        d_IA_Total = 0;
+        d_ISLight_Total = 0;
+        d_ISModerate_Total = 0;
+        d_ISSevere_Total = 0;
+        d_H_Total = 0;
+        d_ICU_Total = 0;
+        d_Recovered_Total = 0;
+
+        // Initialize cumulative death counters to ZERO at simulation start
+        d_DeadCovid_Total = 0;  // Start fresh for this simulation
+        d_Dead_Total = 0;       // Start fresh for this simulation
+
+        // Initialize incidence counters
+        d_New_S = 0;
+        d_New_E = 0;
+        d_New_IP = 0;
+        d_New_IA = 0;
+        d_New_ISLight = 0;
+        d_New_ISModerate = 0;
+        d_New_ISSevere = 0;
+        d_New_H = 0;
+        d_New_ICU = 0;
+        d_New_Recovered = 0;
+        d_New_DeadCovid = 0;
+        d_New_Dead = 0;
+    }
+}
 // CORRECTED: Kernel to reset counters at the beginning of each simulation
 __global__ void resetCounters_kernel() {
     if (threadIdx.x == 0 && blockIdx.x == 0) {
@@ -41,9 +74,7 @@ __global__ void resetCounters_kernel() {
         d_H_Total = 0;
         d_ICU_Total = 0;
         d_Recovered_Total = 0;
-        // CORRECTED: Reset these counters for each simulation!
-        d_DeadCovid_Total = 0;  // FIX: Reset COVID deaths for each simulation
-        d_Dead_Total = 0;       // FIX: Reset natural deaths for each simulation
+   // FIX: Reset natural deaths for each simulation
     }
 }
 
@@ -229,4 +260,5 @@ __host__ void getCountersFromDevice(int* h_totals, int* h_new_cases) {
     cudaMemcpyFromSymbol(&h_new_cases[DeadCovid], d_New_DeadCovid, sizeof(int));
     cudaMemcpyFromSymbol(&h_new_cases[Dead], d_New_Dead, sizeof(int));
 }
+
 

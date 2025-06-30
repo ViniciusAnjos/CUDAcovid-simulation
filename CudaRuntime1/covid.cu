@@ -156,9 +156,8 @@ int main(int argc, char* argv[]) {
     for (int simulation = 1; simulation <= MAXSIM; simulation++) {
         printf("\n=== Simulation %d/%d ===\n", simulation, MAXSIM);
 
-        // CORRECTED: Reset all counters before each simulation
-        resetCounters_kernel << <1, 1 >> > ();
-        resetNewCounters_kernel << <1, 1 >> > ();
+        // CORRECTED: Initialize counters only at START of simulation
+        initSimulationCounters_kernel << <1, 1 >> > (N);  // ← ADD THIS LINE
         cudaDeviceSynchronize();
 
         // Initialize RNG with unique seed per simulation
@@ -170,7 +169,7 @@ int main(int argc, char* argv[]) {
         initPopulation_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
         cudaDeviceSynchronize();
 
-        // Initialize counters
+        // Initialize counters (if you're using this - might conflict with initSimulationCounters_kernel)
         int* d_stateCounts, * d_newCounts;
         cudaMalloc(&d_stateCounts, 15 * sizeof(int));
         cudaMalloc(&d_newCounts, 15 * sizeof(int));
@@ -195,7 +194,7 @@ int main(int argc, char* argv[]) {
         cudaMemcpyToSymbol(AvailableBeds, &availableBeds, sizeof(int));
         cudaMemcpyToSymbol(AvailableBedsICU, &availableBedsICU, sizeof(int));
 
-        // CORRECTED: Get Day 0 statistics ONCE and write to files using existing system
+        // Get Day 0 statistics and write to files
         int h_totals[15] = { 0 };
         int h_new_cases[15] = { 0 };
         getCountersFromDevice(h_totals, h_new_cases);
@@ -228,6 +227,11 @@ int main(int argc, char* argv[]) {
 
         // CORRECTED: Run simulation starting from Day 1 (not Day 0 to avoid double-counting)
         for (int day = 1; day <= DAYS_TO_RUN; day++) {
+
+            resetCounters_kernel << <1, 1 >> > ();        // ← KEEP THIS (now only resets prevalence)
+            resetNewCounters_kernel << <1, 1 >> > ();     // ← KEEP THIS
+            cudaDeviceSynchronize();
+
             runSimulationDay(d_population, d_rngStates, L, day, blockSize, numBlocks);
 
             // Get statistics
@@ -266,7 +270,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Calculate means across all simulations
-    for (int t = 0; t <= DAYS_TO_RUN; t++) {
+    for (int t = 1; t <= DAYS_TO_RUN; t++) {
         S_Mean[t] = S_Sum[t] / (double)MAXSIM;
         E_Mean[t] = E_Sum[t] / (double)MAXSIM;
         IP_Mean[t] = IP_Sum[t] / (double)MAXSIM;
