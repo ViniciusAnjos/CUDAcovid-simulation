@@ -17,14 +17,17 @@ __host__ __device__ inline bool isInfectious(int health) {
 __device__ ContactResult checkLocalContacts(int i, int j, int L, GPUPerson* population) {
     ContactResult result = { 0, false };
 
-    // Get neighbor indices based on density
     int neighborIndices[8];
     int numNeighbors;
     getNeighborIndices(i, j, L, d_Density, neighborIndices, numNeighbors);
 
-    // Check each neighbor
     for (int n = 0; n < numNeighbors; n++) {
-        if (isInfectious(population[neighborIndices[n]].Health)) {
+        int nIdx = neighborIndices[n];
+        if (isInfectious(population[nIdx].Health)) {
+#ifdef PATIENT_ZERO_ONLY_MODE
+            // In R0 mode only patient zero counts as infectious source
+            if (population[nIdx].PatientZeroID != 1) continue;
+#endif
             result.infectiousContacts++;
             result.anyContact = true;
         }
@@ -64,6 +67,9 @@ __device__ ContactResult checkRandomContacts(int i, int j, int L,
         // Check if random contact is infectious
         int randIdx = to1D(randI, randJ, L);
         if (isInfectious(population[randIdx].Health)) {
+#ifdef PATIENT_ZERO_ONLY_MODE
+            if (population[randIdx].PatientZeroID != 1) continue;
+#endif
             result.infectiousContacts++;
             result.anyContact = true;
         }
@@ -142,7 +148,8 @@ __device__ void spreadInfection_kernel(int i, int j, GPUPerson* population,
                     population[randomIdx].StateTime = rn * (d_MaxLatency - d_MinLatency) + d_MinLatency;
 
 #ifdef PATIENT_ZERO_ONLY_MODE
-                    population[randomIdx].PatientZeroID = 0; // Cannot infect others
+                    population[randomIdx].PatientZeroID = 0;
+                    atomicAdd(&d_R0_count, 1);  // conta filho direto do paciente zero
 #endif
                 }
             }

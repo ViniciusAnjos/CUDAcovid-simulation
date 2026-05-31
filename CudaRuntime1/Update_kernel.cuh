@@ -54,6 +54,7 @@ __global__ void initSimulationCounters_kernel(int N) {
         d_New_Recovered = 0;
         d_New_DeadCovid = 0;
         d_New_Dead = 0;
+        d_R0_count = 0;
     }
 }
 
@@ -240,4 +241,10 @@ __host__ void getCountersFromDevice(int* h_totals, int* h_new_cases) {
     cudaMemcpyFromSymbol(&h_new_cases[Recovered],  d_New_Recovered,  sizeof(int));
     cudaMemcpyFromSymbol(&h_new_cases[DeadCovid],  d_New_DeadCovid,  sizeof(int));
     cudaMemcpyFromSymbol(&h_new_cases[Dead],       d_New_Dead,       sizeof(int));
+}
+
+__host__ int getR0CountFromDevice() {
+    int val;
+    cudaMemcpyFromSymbol(&val, d_R0_count, sizeof(int));
+    return val;
 }

@@ -23,6 +23,9 @@
 #include "H_kernel.cuh"
 #include "ICU_kernel.cuh"
 
+// R0 accumulator across simulations
+double R0_Sum = 0.0;
+
 // Arrays for storing simulation results across multiple simulations
 double S_Sum[DAYS + 2] = { 0 };
 double E_Sum[DAYS + 2] = { 0 };
@@ -264,10 +267,20 @@ int main(int argc, char* argv[]) {
             New_DeadCovid_Sum[day] += (double)h_new_cases[DeadCovid] / (double)N;
         }
 
+        // Ler R0 desta simulacao (filhos diretos do paciente zero)
+        int r0_this_sim = getR0CountFromDevice();
+        R0_Sum += (double)r0_this_sim;
+        printf("  R0 desta simulacao: %d\n", r0_this_sim);
+
         // Cleanup simulation-specific memory
         cudaFree(d_stateCounts);
         cudaFree(d_newCounts);
     }
+
+    // R0 medio
+    double R0_Mean = R0_Sum / (double)MAXSIM;
+    printf("\n=== R0 medio (Beta=%.4f): %.2f ===\n", Beta, R0_Mean);
+    printf("Alvo: R0 = 3.5\n");
 
     // Calculate means across all simulations
     for (int t = 1; t <= DAYS_TO_RUN; t++) {

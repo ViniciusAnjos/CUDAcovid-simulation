@@ -71,6 +71,7 @@ __constant__ double d_AverageOcupationRateBeds;
 __constant__ double d_AverageOcupationRateBedsICU;
 __device__ int AvailableBeds;
 __device__ int AvailableBedsICU;
+__device__ int d_R0_count;  // filhos diretos do paciente zero
 
 // City Parameters
 __constant__ double d_BEDSPOP;
@@ -80,9 +81,9 @@ __constant__ double d_MinRandomContacts;
 __constant__ int d_Density;
 __constant__ int d_HIGH;
 __constant__ int d_LOW;
-__constant__ int d_SP;    // São Paulo
+__constant__ int d_SP;    // Sï¿½o Paulo
 __constant__ int d_ROC;   // Rocinha
-__constant__ int d_BRA;   // Brasília
+__constant__ int d_BRA;   // Brasï¿½lia
 __constant__ int d_MAN;   // Manaus
 __constant__ int d_C5;
 __constant__ int d_C6;
@@ -113,13 +114,13 @@ __host__ void setupCityParameters(int city) {
     // Define valores baseados na cidade
     switch (city) {
     case SP:
-        //São paulo
+        //Sï¿½o paulo
         Density = HIGH;
         BEDSPOP = 0.00247452;
         ICUPOP = 0.00043782;
         MaxRandomContacts = 19.5;
         MinRandomContacts = 1.5;
-        printf("Selected city: São Paulo\n");
+        printf("Selected city: Sï¿½o Paulo\n");
         break;
 
     case ROC:
@@ -133,13 +134,13 @@ __host__ void setupCityParameters(int city) {
         break;
 
     case BRA:
-        //Brasília
+        //Brasï¿½lia
         Density = LOW;
         BEDSPOP = 0.00260879;
         ICUPOP = 0.00040114;
         MaxRandomContacts = 2.5;
         MinRandomContacts = 1.5;
-        printf("Selected city: Brasília\n");
+        printf("Selected city: Brasï¿½lia\n");
         break;
 
     case MAN:
@@ -369,24 +370,24 @@ __host__ void buildArrays(
 
     // Initialize age structure arrays
     
-    h_ProbBirthAge[1] = 0.06960000;     // 0–4 years
-    h_ProbBirthAge[2] = 0.06920000;     // 5–9 years
-    h_ProbBirthAge[3] = 0.06990000;     // 10–14 years
-    h_ProbBirthAge[4] = 0.07460000;     // 15–19 years
-    h_ProbBirthAge[5] = 0.08140000;     // 20–24 years
-    h_ProbBirthAge[6] = 0.08020000;     // 25–29 years
-    h_ProbBirthAge[7] = 0.08130000;     // 30–34 years
-    h_ProbBirthAge[8] = 0.08040000;     // 35–39 years
-    h_ProbBirthAge[9] = 0.07370000;     // 40–44 years
-    h_ProbBirthAge[10] = 0.06450000;    // 45–49 years
-    h_ProbBirthAge[11] = 0.05960000;    // 50–54 years
-    h_ProbBirthAge[12] = 0.05320000;    // 55–59 years
-    h_ProbBirthAge[13] = 0.04430000;    // 60–64 years
-    h_ProbBirthAge[14] = 0.03470000;    // 65–69 years
-    h_ProbBirthAge[15] = 0.02550000;    // 70–74 years
-    h_ProbBirthAge[16] = 0.01710000;    // 75–79 years
-    h_ProbBirthAge[17] = 0.01120000;    // 80–84 years
-    h_ProbBirthAge[18] = 0.00590000;    // 85–89 years
+    h_ProbBirthAge[1] = 0.06960000;     // 0ï¿½4 years
+    h_ProbBirthAge[2] = 0.06920000;     // 5ï¿½9 years
+    h_ProbBirthAge[3] = 0.06990000;     // 10ï¿½14 years
+    h_ProbBirthAge[4] = 0.07460000;     // 15ï¿½19 years
+    h_ProbBirthAge[5] = 0.08140000;     // 20ï¿½24 years
+    h_ProbBirthAge[6] = 0.08020000;     // 25ï¿½29 years
+    h_ProbBirthAge[7] = 0.08130000;     // 30ï¿½34 years
+    h_ProbBirthAge[8] = 0.08040000;     // 35ï¿½39 years
+    h_ProbBirthAge[9] = 0.07370000;     // 40ï¿½44 years
+    h_ProbBirthAge[10] = 0.06450000;    // 45ï¿½49 years
+    h_ProbBirthAge[11] = 0.05960000;    // 50ï¿½54 years
+    h_ProbBirthAge[12] = 0.05320000;    // 55ï¿½59 years
+    h_ProbBirthAge[13] = 0.04430000;    // 60ï¿½64 years
+    h_ProbBirthAge[14] = 0.03470000;    // 65ï¿½69 years
+    h_ProbBirthAge[15] = 0.02550000;    // 70ï¿½74 years
+    h_ProbBirthAge[16] = 0.01710000;    // 75ï¿½79 years
+    h_ProbBirthAge[17] = 0.01120000;    // 80ï¿½84 years
+    h_ProbBirthAge[18] = 0.00590000;    // 85ï¿½89 years
     h_ProbBirthAge[19] = 0.00380000;    // 90+ years
 
     // Calculate cumulative probabilities

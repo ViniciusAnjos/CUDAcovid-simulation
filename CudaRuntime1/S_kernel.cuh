@@ -28,6 +28,12 @@ __global__ void S_kernel(GPUPerson* population, unsigned int* rngStates, int L) 
                         rn = generateRandom(&rngStates[idx]);
                         population[personIdx].StateTime =
                             rn * (d_MaxLatency - d_MinLatency) + d_MinLatency;
+
+#ifdef PATIENT_ZERO_ONLY_MODE
+                        // checkAllContacts ja filtrou: so chega aqui se
+                        // o contato infeccioso era o paciente zero
+                        atomicAdd(&d_R0_count, 1);
+#endif
                     }
                     else {
                         population[personIdx].Swap = d_S;
