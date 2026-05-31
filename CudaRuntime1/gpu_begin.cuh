@@ -293,6 +293,54 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
     rngStates[0] = localState;
     }
 
+// Kernel barato para calibracao R0: reseta estados de saude sem recriar idades.
+// Chamado a cada simulacao em vez de initPopulation_kernel (que e lento).
+__global__ void resetForR0_kernel(GPUPerson* population, unsigned int* rngStates, int L) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int gridSize = (L + 2) * (L + 2);
+    if (idx >= gridSize) return;
+
+    // Reseta apenas os campos que mudam entre simulacoes
+    population[idx].Health       = d_S;
+    population[idx].Swap         = d_S;
+    population[idx].PatientZeroID = 0;
+    population[idx].Isolation    = d_IsolationNo;
+    population[idx].Exponent     = 0;
+    population[idx].Checked      = 0;
+    population[idx].TimeOnState  = 0;
+    population[idx].StateTime    = 0;
+    population[idx].Days         = 0;
+    // AgeYears, AgeDays, AgeDeathYears, AgeDeathDays permanecem do init original
+}
+
+// Coloca 1 unico paciente zero (IP) numa posicao aleatoria.
+// Chamado apos resetForR0_kernel, executado por 1 thread.
+__global__ void placePatientZero_kernel(GPUPerson* population,
+                                        unsigned int* rngStates, int L) {
+    if (threadIdx.x != 0 || blockIdx.x != 0) return;
+
+    unsigned int localState = rngStates[0];
+    int i, j, personIdx;
+
+    // Encontra celula S aleatoria
+    do {
+        double rn = generateRandom(&localState);
+        i = (int)(rn * L) + 1;
+        rn = generateRandom(&localState);
+        j = (int)(rn * L) + 1;
+        personIdx = to1D(i, j, L);
+    } while (population[personIdx].Health != d_S);
+
+    population[personIdx].Health       = d_IP;
+    population[personIdx].Swap         = d_IP;
+    population[personIdx].PatientZeroID = 1;
+
+    double rn = generateRandom(&localState);
+    population[personIdx].StateTime = (int)(rn * (d_MaxIP - d_MinIP) + d_MinIP);
+
+    rngStates[0] = localState;
+}
+
 // Initialize counters kernel
 __global__ void initCounters_kernel(int* stateCounts, int* newCounts, int N) {
     int idx = threadIdx.x;

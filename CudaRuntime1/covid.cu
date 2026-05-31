@@ -144,142 +144,48 @@ int main(int argc, char* argv[]) {
     int blockSize = 256;
     int numBlocks = (gridSize + blockSize - 1) / blockSize;
 
-    // CORRECTED: Initialize sum arrays to zero
-    for (int t = 0; t <= DAYS_TO_RUN; t++) {
-        S_Sum[t] = E_Sum[t] = IP_Sum[t] = IA_Sum[t] = 0.0;
-        ISLight_Sum[t] = ISModerate_Sum[t] = ISSevere_Sum[t] = 0.0;
-        H_Sum[t] = ICU_Sum[t] = Recovered_Sum[t] = DeadCovid_Sum[t] = 0.0;
+    // Inicializa populacao UMA VEZ (idades, estrutura demografica)
+    initRNG<<<numBlocks, blockSize>>>(d_rngStates, 893221891u, gridSize);
+    cudaDeviceSynchronize();
+    initPopulation_kernel<<<numBlocks, blockSize>>>(d_population, d_rngStates, L);
+    cudaDeviceSynchronize();
+    printf("Populacao inicializada. Iniciando %d simulacoes (Beta=%.4f)...\n",
+           MAXSIM, Beta);
 
-        New_S_Sum[t] = New_E_Sum[t] = New_IP_Sum[t] = New_IA_Sum[t] = 0.0;
-        New_ISLight_Sum[t] = New_ISModerate_Sum[t] = New_ISSevere_Sum[t] = 0.0;
-        New_H_Sum[t] = New_ICU_Sum[t] = New_Recovered_Sum[t] = New_DeadCovid_Sum[t] = 0.0;
-    }
+    int h_totals[15] = { 0 };
+    int h_new_cases[15] = { 0 };
 
-    // Run multiple simulations for averaging
+    // Loop de simulacoes para calibracao R0
     for (int simulation = 1; simulation <= MAXSIM; simulation++) {
-        printf("\n=== Simulation %d/%d ===\n", simulation, MAXSIM);
 
-        // CORRECTED: Initialize counters only at START of simulation
-        initSimulationCounters_kernel << <1, 1 >> > (N);  // ? ADD THIS LINE
+        // Reset barato: apenas estados de saude, sem recriar idades
+        resetForR0_kernel<<<numBlocks, blockSize>>>(d_population, d_rngStates, L);
         cudaDeviceSynchronize();
 
-        // Initialize RNG with unique seed per simulation
-        unsigned int seed = 893221891 * simulation;
-        initRNG << <numBlocks, blockSize >> > (d_rngStates, seed, gridSize);
+        // RNG com seed unico por simulacao
+        initRNG<<<numBlocks, blockSize>>>(d_rngStates, 893221891u * simulation, gridSize);
         cudaDeviceSynchronize();
 
-        // Initialize population
-        initPopulation_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
+        // Coloca 1 paciente zero (IP) e reseta contadores/flags
+        placePatientZero_kernel<<<1, 1>>>(d_population, d_rngStates, L);
+        initSimulationCounters_kernel<<<1, 1>>>(N);
         cudaDeviceSynchronize();
 
-        // Initialize counters (if you're using this - might conflict with initSimulationCounters_kernel)
-        int* d_stateCounts, * d_newCounts;
-        cudaMalloc(&d_stateCounts, 15 * sizeof(int));
-        cudaMalloc(&d_newCounts, 15 * sizeof(int));
-        initCounters_kernel << <1, 32 >> > (d_stateCounts, d_newCounts, N);
-        cudaDeviceSynchronize();
-
-        // Distribute initial infections
-        distributeInitialInfections_kernel << <1, 1 >> > (
-            d_population, d_rngStates, d_stateCounts, d_newCounts, L,
-            0,  // Eini
-            5,  // IPini
-            0,  // IAini
-            0,  // ISLightini
-            0,  // ISModerateini
-            0   // ISSevereini
-            );
-        cudaDeviceSynchronize();
-
-        // Set available beds
-        int availableBeds = NumberOfHospitalBeds - NumberOfHospitalBeds * AverageOcupationRateBeds;
-        int availableBedsICU = NumberOfICUBeds - NumberOfICUBeds * AverageOcupationRateBedsICU;
-        cudaMemcpyToSymbol(AvailableBeds, &availableBeds, sizeof(int));
-        cudaMemcpyToSymbol(AvailableBedsICU, &availableBedsICU, sizeof(int));
-
-        // Get Day 0 statistics and write to files
-        int h_totals[15] = { 0 };
-        int h_new_cases[15] = { 0 };
-        getCountersFromDevice(h_totals, h_new_cases);
-        writeInitialSimulationData(simulation, h_totals, h_new_cases, N);
-
-        // CORRECTED: Add to sum arrays for averaging (Day 0 ONLY ONCE)
-        S_Sum[0] += (double)h_totals[S] / (double)N;
-        E_Sum[0] += (double)h_totals[E] / (double)N;
-        IP_Sum[0] += (double)h_totals[IP] / (double)N;
-        IA_Sum[0] += (double)h_totals[IA] / (double)N;
-        ISLight_Sum[0] += (double)h_totals[ISLight] / (double)N;
-        ISModerate_Sum[0] += (double)h_totals[ISModerate] / (double)N;
-        ISSevere_Sum[0] += (double)h_totals[ISSevere] / (double)N;
-        H_Sum[0] += (double)h_totals[H] / (double)N;
-        ICU_Sum[0] += (double)h_totals[ICU] / (double)N;
-        Recovered_Sum[0] += (double)h_totals[Recovered] / (double)N;
-        DeadCovid_Sum[0] += (double)h_totals[DeadCovid] / (double)N;
-
-        New_S_Sum[0] += (double)h_new_cases[S] / (double)N;
-        New_E_Sum[0] += (double)h_new_cases[E] / (double)N;
-        New_IP_Sum[0] += (double)h_new_cases[IP] / (double)N;
-        New_IA_Sum[0] += (double)h_new_cases[IA] / (double)N;
-        New_ISLight_Sum[0] += (double)h_new_cases[ISLight] / (double)N;
-        New_ISModerate_Sum[0] += (double)h_new_cases[ISModerate] / (double)N;
-        New_ISSevere_Sum[0] += (double)h_new_cases[ISSevere] / (double)N;
-        New_H_Sum[0] += (double)h_new_cases[H] / (double)N;
-        New_ICU_Sum[0] += (double)h_new_cases[ICU] / (double)N;
-        New_Recovered_Sum[0] += (double)h_new_cases[Recovered] / (double)N;
-        New_DeadCovid_Sum[0] += (double)h_new_cases[DeadCovid] / (double)N;
-
-        // Loop diario — para quando paciente zero nao eh mais infeccioso
+        // Loop diario — para quando paciente zero se recupera/morre
         for (int day = 1; day <= DAYS_TO_RUN; day++) {
-
             resetCounters_kernel<<<1, 1>>>();
             resetNewCounters_kernel<<<1, 1>>>();
             cudaDeviceSynchronize();
 
             runSimulationDay(d_population, d_rngStates, L, day, blockSize, numBlocks);
 
-            // Early stopping: paciente zero recuperado/morto
 #ifdef PATIENT_ZERO_ONLY_MODE
             if (getPatientZeroActiveFromDevice() == 0) break;
 #endif
-
-            // Get statistics
-            getCountersFromDevice(h_totals, h_new_cases);
-            writeDailySimulationData(simulation, day, h_totals, h_new_cases, N);
-
-            // Add to sum arrays for averaging
-            S_Sum[day] += (double)h_totals[S] / (double)N;
-            E_Sum[day] += (double)h_totals[E] / (double)N;
-            IP_Sum[day] += (double)h_totals[IP] / (double)N;
-            IA_Sum[day] += (double)h_totals[IA] / (double)N;
-            ISLight_Sum[day] += (double)h_totals[ISLight] / (double)N;
-            ISModerate_Sum[day] += (double)h_totals[ISModerate] / (double)N;
-            ISSevere_Sum[day] += (double)h_totals[ISSevere] / (double)N;
-            H_Sum[day] += (double)h_totals[H] / (double)N;
-            ICU_Sum[day] += (double)h_totals[ICU] / (double)N;
-            Recovered_Sum[day] += (double)h_totals[Recovered] / (double)N;
-            DeadCovid_Sum[day] += (double)h_totals[DeadCovid] / (double)N;
-
-            New_S_Sum[day] += (double)h_new_cases[S] / (double)N;
-            New_E_Sum[day] += (double)h_new_cases[E] / (double)N;
-            New_IP_Sum[day] += (double)h_new_cases[IP] / (double)N;
-            New_IA_Sum[day] += (double)h_new_cases[IA] / (double)N;
-            New_ISLight_Sum[day] += (double)h_new_cases[ISLight] / (double)N;
-            New_ISModerate_Sum[day] += (double)h_new_cases[ISModerate] / (double)N;
-            New_ISSevere_Sum[day] += (double)h_new_cases[ISSevere] / (double)N;
-            New_H_Sum[day] += (double)h_new_cases[H] / (double)N;
-            New_ICU_Sum[day] += (double)h_new_cases[ICU] / (double)N;
-            New_Recovered_Sum[day] += (double)h_new_cases[Recovered] / (double)N;
-            New_DeadCovid_Sum[day] += (double)h_new_cases[DeadCovid] / (double)N;
         }
 
-        // Ler R0 desta simulacao (filhos diretos do paciente zero)
-        int r0_this_sim = getR0CountFromDevice();
-        R0_Sum += (double)r0_this_sim;
-        printf("  R0 desta simulacao: %d\n", r0_this_sim);
-
-        // Cleanup simulation-specific memory
-        cudaFree(d_stateCounts);
-        cudaFree(d_newCounts);
+        // Acumula R0 desta simulacao
+        R0_Sum += (double)getR0CountFromDevice();
     }
 
     // R0 medio
