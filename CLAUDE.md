@@ -181,15 +181,17 @@ infecta **diretamente** em uma população 100% suscetível.
 ## Calibração R0 — progresso (branch `r0`)
 
 ### Resultados confirmados
-| Beta   | R0 médio (1000 sims) |
-|--------|----------------------|
-| 0.3000 | 56.31                |
-| 0.0200 | 4.66                 |
-| 0.0150 | 4.42                 |
-| 0.0100 | 2.47                 |
+| Beta   | R0 médio (1000 sims) | Confiável |
+|--------|----------------------|-----------|
+| 0.3000 | 56.31                | ✓         |
+| 0.0200 | 4.66                 | ✓         |
+| 0.0150 | 4.42                 | ✓         |
+| 0.0125 | 2.68                 | ✓         |
+| 0.0124 | 2.54                 | ✓         |
+| 0.0100 | 2.47                 | ✓         |
 
-**Intervalo atual:** Beta ∈ [0.01, 0.015], R0 ∈ [2.47, 4.42], alvo = 3.5
-**Próximo valor a testar:** Beta = 0.0125
+**Intervalo atual:** Beta ∈ [0.0125, 0.015], R0 ∈ [2.68, 4.42], alvo = 3.5
+**Próximo valor a testar:** Beta = 0.0138 (midpoint)
 
 ### Implementação da calibração (branch `r0`)
 - `PATIENT_ZERO_ONLY_MODE` ativo em `gpu_define.cuh`
