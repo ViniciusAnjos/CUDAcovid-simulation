@@ -119,12 +119,12 @@ void Updatefunc()
 
 		//if(MaximumIsolated > 0)	
 		//{
-		if (time == TimeTiggerIsolation)
+		if (sim_time == TimeTiggerIsolation)
 		{
 
-			//printf("Entrou no começo do isolamento em t=%i\n",time);
+			//printf("Entrou no comeï¿½o do isolamento em t=%i\n",time);
 
-				//printf("Chamou a função de isolamento em t=%i\n",time);
+				//printf("Chamou a funï¿½ï¿½o de isolamento em t=%i\n",time);
 			Isolationfunc();
 		}
 

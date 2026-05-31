@@ -1,3 +1,5 @@
+#ifndef DEFINE_H
+#define DEFINE_H
 /* Covid states */
 const int S = 1;             /* Susceptible individuals */
 const int E = 2;             /* Pre symptomatic */
@@ -19,9 +21,9 @@ const int ISSevere = 14;
 const double MAXNUM = 4294967295.;             /* for 32 bits compilers */
 
 const int DAYS = 400;        /* Number of days simulated */
-const int MAXSIM = 1;        /* Number of simulations to evaluate averages */
+const int MAXSIM = 5;        /* Number of simulations to evaluate averages */
 
-const int L = 3200;
+const int L = 100;
 const int N = L * L;
 
 //cities
@@ -154,4 +156,6 @@ double MinRandomContacts;
 
 //double ProportionOfICUBeds;  // proportion relative to the total of hospital beds
 //int TotalBedsICU;
+
+#endif // DEFINE_H
 
