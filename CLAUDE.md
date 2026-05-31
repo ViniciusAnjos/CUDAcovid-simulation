@@ -178,18 +178,60 @@ infecta **diretamente** em uma população 100% suscetível.
 
 ---
 
-## Estado atual da validação
+## Calibração R0 — progresso (branch `r0`)
 
-**Problema em aberto:** Com L=100, MAXSIM=5, os resultados serial e GPU divergem significativamente:
+### Resultados confirmados
+| Beta   | R0 médio (1000 sims) |
+|--------|----------------------|
+| 0.3000 | 56.31                |
+| 0.0200 | 4.66                 |
+| 0.0150 | 4.42                 |
+| 0.0100 | 2.47                 |
+
+**Intervalo atual:** Beta ∈ [0.01, 0.015], R0 ∈ [2.47, 4.42], alvo = 3.5
+**Próximo valor a testar:** Beta = 0.0125
+
+### Implementação da calibração (branch `r0`)
+- `PATIENT_ZERO_ONLY_MODE` ativo em `gpu_define.cuh`
+- `d_R0_count` — contador de filhos diretos do paciente zero
+- `d_patientZeroActive` — flag para early stopping
+- **Early stopping corrigido:** para quando paciente zero sai de IP/IA/ISLight
+  (não espera recuperação total — evita rodar H/ICU desnecessariamente)
+- `resetForR0_kernel` + `placePatientZero_kernel` — reset barato por simulação
+  (init de idades feito apenas 1x antes do loop)
+
+### Problema operacional encontrado
+O PowerShell tool sempre roda em background, acumulando múltiplos processos
+`covid_sim` simultâneos com race condition em `define.h` e `covid_sim.exe`.
+**Solução para próxima sessão:** testar um Beta por vez, esperar notificação
+de conclusão antes de disparar o próximo.
+
+### Workflow correto para calibração
+```
+# 1. Compilar uma vez com o Beta desejado
+(Get-Content define.h) -replace 'Beta = [^;]+', "Beta = 0.0125" | Set-Content define.h
+nvcc covid.cu -o covid_sim.exe -arch=sm_89 --diag-suppress 20091
+
+# 2. Rodar e esperar conclusão (notificação automática)
+.\covid_sim.exe
+
+# 3. Ler resultado e decidir próximo Beta
+# R0 < 3.5 → aumentar Beta; R0 > 3.5 → diminuir Beta
+```
+
+---
+
+## Estado atual da validação (simulação completa)
+
+**Problema em aberto:** Com L=100, MAXSIM=5, os resultados serial e GPU divergem:
 - Serial: epidemia explode rapidamente (S cai para ~0.06 no dia 25)
 - GPU: propagação muito lenta (S ainda ~0.98 no dia 25)
 
-**Hipóteses investigar:**
-1. `spreadInfection_kernel` pode estar com conflito de `Checked`/`Exponent` com `S_kernel`,
-   fazendo infecções serem canceladas
-2. O RNG per-thread da GPU com L pequeno pode gerar viés
-3. A ordem de execução dos kernels pode estar causando que `Checked=1` do `S_kernel`
-   bloqueie o `spreadInfection_kernel` no mesmo timestep
+**Hipóteses a investigar:**
+1. `spreadInfection_kernel` pode estar com conflito de `Checked`/`Exponent` com `S_kernel`
+2. RNG per-thread com L pequeno pode gerar viés
+3. Ordem de execução dos kernels pode fazer `Checked=1` do `S_kernel` bloquear
+   o `spreadInfection_kernel` no mesmo timestep
 
 ---
 

@@ -173,11 +173,14 @@ __global__ void update_kernel(GPUPerson* population, unsigned int* rngStates,
         }
 
 #ifdef PATIENT_ZERO_ONLY_MODE
-        // Detecta quando paciente zero deixa de ser infeccioso
+        // Para quando paciente zero sai dos estados de espalhamento ativo.
+        // IP, IA, ISLight espalham via spreadInfection_kernel.
+        // ISModerate/ISSevere/H/ICU nao espalham ativamente — nao contribuem
+        // para R0 de forma significativa com L grande.
         if (population[personIdx].PatientZeroID == 1) {
             int s = population[personIdx].Health;
-            bool inactive = (s == d_Recovered || s == d_Dead || s == d_DeadCovid);
-            if (inactive) {
+            bool spreading = (s == d_IP || s == d_IA || s == d_ISLight);
+            if (!spreading) {
                 d_patientZeroActive = 0;
             }
         }
