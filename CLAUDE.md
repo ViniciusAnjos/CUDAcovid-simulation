@@ -132,6 +132,41 @@ Início: 5 indivíduos em IP, restante S.
 
 ---
 
+## Calibração do Beta (branch `r0`)
+
+**Objetivo:** encontrar β tal que R0 = 3.5 na implementação GPU.
+
+**Definição de R0 aqui:** número médio de pessoas que o caso índice (paciente zero)
+infecta **diretamente** em uma população 100% suscetível.
+
+**Método correto:**
+1. Inicializar com 1 IP (paciente zero), resto S
+2. Rodar até paciente zero se recuperar (sair do estado IP)
+3. Contar quantas pessoas passaram S→E por causa direta do paciente zero
+4. Esse número = R0 desta rodada
+5. Repetir muitas vezes (MAXSIM alto), tirar a média
+6. Ajustar Beta até média ≈ 3.5
+
+**Estado atual da implementação (`PATIENT_ZERO_ONLY_MODE`):**
+- `gpu_define.cuh`: `#define PATIENT_ZERO_ONLY_MODE 1` — ativo
+- `gpu_person.cuh`: campo `PatientZeroID` adicionado à struct GPUPerson
+- `gpu_begin.cuh`: força exatamente 1 IP com `PatientZeroID = 1`
+- `gpu_neighbors.cuh`: `spreadInfection_kernel` só executa para `PatientZeroID == 1`
+
+**Bug no modo atual:**
+- `S_kernel` (`checkAllContacts`) NÃO verifica `PatientZeroID` — susceptíveis
+  ainda encontram e são infectados por casos secundários via contatos aleatórios
+- Resultado: epidemia se propaga além do caso índice, inflando o R0 medido
+- **Não existe nenhum contador que meça o R0** — o código salva apenas os
+  arquivos `.dat` normais de prevalência, sem reportar o R0 calculado
+
+**O que precisa ser implementado:**
+- Contador `d_R0_count` incrementado só quando paciente zero causa S→E
+- Leitura do contador após paciente zero se recuperar
+- Loop de calibração: rodar N vezes, calcular média, ajustar Beta
+
+---
+
 ## Bugs já corrigidos (branch `fix/gpu-kernel-correctness`)
 
 1. **`TimeOnState` duplicado** — state kernels (E,IP,IS,H,ICU) já incrementam; `update_kernel`
