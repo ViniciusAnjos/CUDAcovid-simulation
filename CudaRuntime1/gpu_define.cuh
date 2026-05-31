@@ -71,7 +71,8 @@ __constant__ double d_AverageOcupationRateBeds;
 __constant__ double d_AverageOcupationRateBedsICU;
 __device__ int AvailableBeds;
 __device__ int AvailableBedsICU;
-__device__ int d_R0_count;  // filhos diretos do paciente zero
+__device__ int d_R0_count;          // filhos diretos do paciente zero
+__device__ int d_patientZeroActive; // 1 enquanto paciente zero eh infeccioso
 
 // City Parameters
 __constant__ double d_BEDSPOP;

@@ -55,6 +55,7 @@ __global__ void initSimulationCounters_kernel(int N) {
         d_New_DeadCovid = 0;
         d_New_Dead = 0;
         d_R0_count = 0;
+        d_patientZeroActive = 1;
     }
 }
 
@@ -171,6 +172,17 @@ __global__ void update_kernel(GPUPerson* population, unsigned int* rngStates,
             }
         }
 
+#ifdef PATIENT_ZERO_ONLY_MODE
+        // Detecta quando paciente zero deixa de ser infeccioso
+        if (population[personIdx].PatientZeroID == 1) {
+            int s = population[personIdx].Health;
+            bool inactive = (s == d_Recovered || s == d_Dead || s == d_DeadCovid);
+            if (inactive) {
+                d_patientZeroActive = 0;
+            }
+        }
+#endif
+
         // FIX: Safety check from original Updatefunc() - if AgeYears reached
         // AgeDeathYears, force death (handles edge cases)
         if (population[personIdx].AgeYears >= population[personIdx].AgeDeathYears &&
@@ -246,5 +258,11 @@ __host__ void getCountersFromDevice(int* h_totals, int* h_new_cases) {
 __host__ int getR0CountFromDevice() {
     int val;
     cudaMemcpyFromSymbol(&val, d_R0_count, sizeof(int));
+    return val;
+}
+
+__host__ int getPatientZeroActiveFromDevice() {
+    int val;
+    cudaMemcpyFromSymbol(&val, d_patientZeroActive, sizeof(int));
     return val;
 }

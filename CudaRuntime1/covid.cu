@@ -1,4 +1,4 @@
-﻿// Corrected covid.cu - Using existing output_files.cuh system
+// Corrected covid.cu - Using existing output_files.cuh system
 // Fixes for Day 0 double-counting and DeadCovid initialization issues
 
 #include <stdio.h>
@@ -121,11 +121,11 @@ int main(int argc, char* argv[]) {
     setupGPUConstants();
 
     // Simulation parameters
-    const int L = 3355;  // São Paulo (L do monografia)
+    const int L = 3355;  // S�o Paulo (L do monografia)
     const int gridSize = (L + 2) * (L + 2);
     const int N = L * L;
-    const int DAYS_TO_RUN = 400;
-    const int MAXSIM = 1;  // 1 simulacao por rodada durante calibracao
+    const int DAYS_TO_RUN = 200;  // limite seguro: pior caso ~150 dias
+    const int MAXSIM = 1000;
 
     printf("Grid size: %d x %d = %d cells\n", L, L, N);
     printf("Running for %d days, %d simulations\n", DAYS_TO_RUN, MAXSIM);
@@ -160,7 +160,7 @@ int main(int argc, char* argv[]) {
         printf("\n=== Simulation %d/%d ===\n", simulation, MAXSIM);
 
         // CORRECTED: Initialize counters only at START of simulation
-        initSimulationCounters_kernel << <1, 1 >> > (N);  // ← ADD THIS LINE
+        initSimulationCounters_kernel << <1, 1 >> > (N);  // ? ADD THIS LINE
         cudaDeviceSynchronize();
 
         // Initialize RNG with unique seed per simulation
@@ -228,14 +228,19 @@ int main(int argc, char* argv[]) {
         New_Recovered_Sum[0] += (double)h_new_cases[Recovered] / (double)N;
         New_DeadCovid_Sum[0] += (double)h_new_cases[DeadCovid] / (double)N;
 
-        // CORRECTED: Run simulation starting from Day 1 (not Day 0 to avoid double-counting)
+        // Loop diario — para quando paciente zero nao eh mais infeccioso
         for (int day = 1; day <= DAYS_TO_RUN; day++) {
 
-            resetCounters_kernel << <1, 1 >> > ();        // ← KEEP THIS (now only resets prevalence)
-            resetNewCounters_kernel << <1, 1 >> > ();     // ← KEEP THIS
+            resetCounters_kernel<<<1, 1>>>();
+            resetNewCounters_kernel<<<1, 1>>>();
             cudaDeviceSynchronize();
 
             runSimulationDay(d_population, d_rngStates, L, day, blockSize, numBlocks);
+
+            // Early stopping: paciente zero recuperado/morto
+#ifdef PATIENT_ZERO_ONLY_MODE
+            if (getPatientZeroActiveFromDevice() == 0) break;
+#endif
 
             // Get statistics
             getCountersFromDevice(h_totals, h_new_cases);
