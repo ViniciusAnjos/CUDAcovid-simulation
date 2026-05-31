@@ -167,7 +167,7 @@ double ProbRecoveryICU[121];
 int AgeMin[21];
 int AgeMax[21];
 
-int time;
+int sim_time;
 int Simulation;
 int CountDays;
 int Contagion;
@@ -188,28 +188,8 @@ double TotalInfectiousNew;
 int AvailableBeds;
 int AvailableBedsICU;
 
-int MaximumIsolated;
-int CountIsolated;
+// (variables already declared in define.h — removed duplicates)
 
-double valueR0;
-
-int Density;
-
-double MaxRandomContacts;
-double MinRandomContacts;
-
-//double ProportionOfBeds;   // proportion relative to the total population
-
-
-//double ProportionOfICUBeds;  // proportion relative to the total of hospital beds
-//int TotalBedsICU;
-double BEDSPOP;
-double ICUPOP;
-
-int NumberOfHospitalBeds;
-int NumberOfICUBeds;
-
-char nome[30];
 char nomeincidence[30];
 char nomeprevalence[30];
 
@@ -239,8 +219,7 @@ double aleat()
 #include"isolation.h"
 #include"Update.h"
 
-//CUDA
-#include"gpu_define.cuh"
+// gpu_define.cuh excluded for serial-only compilation
 
 //#include"Image.h"
 
@@ -251,7 +230,7 @@ int main(int argc, char* argv[])
 	int i, j, t;
 
 
-	system("rm *.dat");
+	system("del /Q *.dat 2>NUL");
 
 
 	gp = fopen("parameters.out", "w");
@@ -355,7 +334,7 @@ int main(int argc, char* argv[])
 
 
 
-		for (time = 0; time <= DAYS; time++)
+		for (sim_time = 0; sim_time <= DAYS; sim_time++)
 		{
 			for (i = 1; i <= L; i++) /* Periodic boudandry conditions */
 			{
@@ -443,7 +422,6 @@ int main(int argc, char* argv[])
 
 
 	} // t=0,t<DAY
-	system("cp epidemicsprevalence.dat /mnt/c/Users/vinih/Projetos_python/Modelagem_covid/dados");
-	system("cp epidemicsincidence.dat /mnt/c/Users/vinih/Projetos_python/Modelagem_covid/dados");
+	// system("cp ..."); // Linux-only copy removed
 	return 0;
 }
