@@ -6,11 +6,11 @@ void cities(const int city)
     {
     case SP:
 
-        //São paulo
+        //Sï¿½o paulo
         Density = HIGH;
         BEDSPOP = 0.00247452;
         ICUPOP = 0.00043782;
-        MaxRandomContacts = 2.5;
+        MaxRandomContacts = 18.5;   // doc: SP 2-19 (convencao -0.5, igual Rocinha)
         MinRandomContacts = 1.5;
 
 
@@ -29,7 +29,7 @@ void cities(const int city)
 
     case BRA:
 
-        //Brasília
+        //Brasï¿½lia
         Density = LOW;
         BEDSPOP = 0.00260879;
         ICUPOP = 0.00040114;
