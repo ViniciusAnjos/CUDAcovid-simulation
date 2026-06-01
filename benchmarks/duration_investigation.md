@@ -84,3 +84,96 @@ deu Beta maior à GPU.
   diferente do serial (interleaved por célula) **em função da prevalência** — efeito invisível com 1
   caso, dominante na epidemia. Próximo: medir transmissão/passo a prevalência controlada (ex.: semear
   X% infecciosos fixos, Beta baixo, contar New_E/dia) para várias prevalências X.
+
+### Exp C — transmissão por passo vs prevalência (Beta=0.005, L=200, MAXSIM=20, New_E dia1)
+
+| Prevalência semeada (aleatória) | New_E serial | New_E GPU | razão GPU/ser |
+|---|---|---|---|
+| 1% | 0.001331 | 0.001219 | 0.916 |
+| 10% | 0.010399 | 0.010303 | 0.991 |
+| 20% | 0.017267 | 0.016869 | 0.977 |
+
+**A transmissão POR PASSO é IGUAL** (GPU ~igual ou levemente MENOR — nunca maior). O "~3% a mais"
+de Exp 10 era ruído/config. **A taxa de transmissão por contato está correta nos dois.** → a
+divergência de 3× da epidemia NÃO vem da taxa de transmissão por passo (com semeadura aleatória).
+
+### Exp D — descartes adicionais no regime DINÂMICO (epidemia β=0.0213, SP, L=300)
+- **Auto-evitação igual ao serial (linha+coluna):** GPU ataque 0.657 (era 0.66). ❌ não é.
+- **RNG de alta qualidade (seeding hash + output hash):** GPU ataque 0.65 (era 0.66). ❌ não é.
+
+→ Mesmo no regime dinâmico, auto-evitação e RNG **não** explicam o 3×.
+
+### Estado da investigação (paradoxo)
+**Descartados:** duração IP/IA/ISLight (Exp A), transmissão por passo (Exp C), RNG (Exp D),
+auto-evitação (Exp D), nº de contatos, contagem. **Porém** a epidemia diverge 3× no mesmo Beta.
+Se por-passo E duração são iguais, matematicamente a epidemia deveria ser igual → falta uma variável.
+**Suspeito atual: duração da LATÊNCIA (E)** — não medida ainda. O tempo de geração é dominado pela
+latência (~13 dias); se a duração de E difere, o tempo de geração difere → cresce diferente com R0
+igual. (Exp E em andamento.)
+
+### Exp E — duração da latência (E) (Beta=0, Eini=2000, L=200, MAXSIM=200)
+
+E-dias: serial **0.64** (−dia0 = 0.59), GPU **0.88** → parecia GPU +49%. **Mas era OUTRO BUG:**
+
+> 🐛 **Bug `idx >= L*L` em S_kernel e E_kernel** (commit 74c4b69): o array é `(L+2)²` e células
+> interiores têm `idx = i*(L+2)+j` até ~`L²+3L`. A checagem `idx>=L*L` **pulava uma faixa de células
+> interiores** (últimas ~2 linhas). E_kernel não as processava → agentes E **presos** lá (nunca
+> viravam IP) → inflavam a integral de E. S_kernel também as pulava. (IP/IS/H/ICU/update já usavam
+> bound por i,j.) **Após o fix: GPU E-dias 0.88 → 0.5906 = serial-dia0 exato.** Latência IDÊNTICA.
+
+Direção do bug: as células presas são um **sink** (absorvem infecções sem propagar) → fazia a GPU
+**menor**. Corrigir não muda o 3× (epidemia GPU 0.66→0.66; faixa é ~1.3%).
+
+### Bugs encontrados (todos reais, corrigidos exceto o de reporte)
+1. **Reporte do dia 0** — `distributeInitialInfections` atualiza `d_stateCounts` (array), mas
+   `getCountersFromDevice` lê `d_*_Total` (globais) → seedados não contam no dia 0. (Só reporte.)
+2. **`idx >= L*L`** em S_kernel/E_kernel (commit 74c4b69) — pulava faixa interior.
+
+### Paradoxo persiste
+Após corrigir os artefatos: **E, IP, IA, ISLight todos com duração IDÊNTICA**; transmissão por passo
+idêntica; RNG/auto-evitação descartados. **Mesmo assim a epidemia diverge 3×.** Próxima pista:
+o pool infeccioso do suscetível-driven inclui **ISMod/ISSev/H/ICU** (não medidos), que duram muito
+(H 7-45d, ICU 10-60d). Exp F mede a composição completa do pool.
+
+### Exp F — composição completa do pool infeccioso (Beta=0, IPini=2000, pós fix idx)
+
+| Estado (agente-dias) | Serial | GPU | razão |
+|----------------------|--------|-----|-------|
+| IP | 0.3296 | 0.2800 | 0.85 (artefato dia-0) |
+| IA | 0.0329 | 0.0329 | 1.00 |
+| ISLight | 0.0416 | 0.0417 | 1.00 |
+| ISModerate | 0.0482 | 0.0487 | 1.01 |
+| ISSevere | 0.0078 | 0.0078 | 1.01 |
+| H | 0.0396 | 0.0383 | 0.97 |
+| ICU | 0.0022 | 0.0019 | 0.88 |
+| **Total (−dia0 IP)** | **0.4518** | **0.4513** | **≈1.00** |
+
+**Pool infeccioso completo IDÊNTICO** (corrigindo o dia-0 do IP). H/ICU refutado. Nenhuma diferença
+de duração/composição em nenhum estado.
+
+---
+
+## SÍNTESE da investigação de duração
+
+**Definitivamente IDÊNTICOS** (serial = GPU): duração de E, IP, IA, ISLight, ISModerate, ISSevere,
+H, ICU; composição do pool infeccioso; transmissão por passo (config aleatória, todas as
+prevalências); RNG (mesmo de alta qualidade); auto-evitação; nº de contatos; contagem.
+
+**2 bugs reais encontrados** (não explicam o 3×, direção errada/desprezível):
+1. Reporte do dia-0 (só afeta .dat, não dinâmica).
+2. `idx>=L*L` em S/E_kernel (corrigido, 74c4b69) — fazia GPU **menor** (sink).
+
+**O 3× PERSISTE e é um efeito ESPACIAL/EMERGENTE:** com transmissão por passo E durações idênticas,
+num modelo bem-misturado a epidemia SERIA idêntica. Como é **espacial** (local Moore + aleatório
+global), a mesma taxa por passo produz epidemias diferentes porque a **distribuição espacial** das
+infecções evolui diferente (clusters serial vs GPU). Não foi possível pinar a uma linha de código
+após descartar todas as causas mecanísticas diretas.
+
+**Hipótese remanescente (não testada por exigir instrumentação):** o **balanço entre os dois
+mecanismos** (suscetível-driven local/clusterizado vs infected-driven aleatório/disperso) difere
+porque a GPU roda `S_kernel` (TODOS) antes do infected-driven, enquanto o serial é interleaved por
+célula. O TOTAL por passo é igual (Exp C), mas o SPLIT local-vs-disperso poderia diferir → padrão
+espacial diferente → epidemia diferente. Testar exigiria contadores separados por mecanismo.
+
+**Conclusão prática:** a equivalência exata serial↔GPU é difícil — é uma diferença emergente da
+dinâmica espacial paralela, não um bug pontual. Opções no fim deste doc.
