@@ -1,7 +1,7 @@
 
 __global__ void E_kernel(GPUPerson* population, unsigned int* rngStates, int L) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= L * L) return;
+    if (idx >= (L + 2) * (L + 2)) return;   // FIX: array e (L+2)^2; idx>=L*L pulava faixa interior
 
     int i, j;
     to2D(idx, L, i, j);
