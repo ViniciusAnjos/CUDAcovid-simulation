@@ -42,6 +42,29 @@ para o mesmo R0=3.5 — abordagem pragmática alinhada ao plano da monografia.
 - **Calibrar cada implementação com seu próprio Beta faz ambas baterem R0=3.5**, contornando a
   diferença intrínseca de ~3% no mecanismo (em vez de tentar eliminá-la no código).
 
+## ⚠️ VALIDAÇÃO: calibrar R0 NÃO faz as epidemias completas baterem
+
+Rodada de validação — SP, L=300, MAXSIM=5, IPini=5, cada um com seu Beta de R0=3.5
+(serial 0.02129, GPU 0.0243):
+
+| | S final | pico Infecciosos | ataque (dia 400) |
+|---|---|---|---|
+| Serial | 0.778 | 0.0013 | 22% |
+| GPU | 0.272 | 0.0111 | 73% |
+
+Curva S(t): idêntica nos dias 1–10, **diverge exponencialmente** depois (dia 150: S ser 0.986 vs
+GPU 0.470). **Mesmo R0=3.5 nos dois, as epidemias NÃO coincidem.**
+
+**Causa:** a velocidade da epidemia depende de R0 **e do tempo de geração** (r ≈ (R0−1)/Tg). A GPU
+tem ~12% menos agente-dias infecciosos (período infeccioso mais curto, ver `spread_investigation.md`
+Exp 9) → **tempo de geração menor** → produz os R0=3.5 secundários mais rápido → cresce mais rápido →
+infecta muito mais em 400 dias. R0 igual, dinâmica temporal diferente.
+
+**Conclusão:** o caminho pragmático (só calibrar Beta por R0) **é insuficiente** para equivalência
+serial↔GPU. Para as curvas baterem é preciso **corrigir a diferença de duração infecciosa**
+(timing do state-machine: `TimeOnState`/`StateTime`/reset nas transições E→IP→IA/IS) — caminho de
+equivalência exata. Só então R0 **e** tempo de geração coincidem.
+
 ## Como reproduzir
 ```
 # worktree CudaRuntime1-gpu/CudaRuntime1, define.h: IPini=1, L=200, MAXSIM=1000, Beta=<tabela>
