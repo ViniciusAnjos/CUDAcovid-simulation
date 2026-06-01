@@ -95,8 +95,17 @@ Observações:
   Recalibrar após corrigir o `#if` se quiser fidelidade à doc para baixa densidade.
 
 ### Confirmação em L=3355 (L real de SP)
-R0 é independente de L (provado no sweep). Confirmação de SP a L=3355 com Beta=0.021293:
-_(rodando em background, MAXSIM=100 — preencher ao concluir)_
+R0 é independente de L (provado no sweep). Confirmação de SP a L=3355, Beta=0.021293:
+
+| L | MAXSIM | R0 | tempo |
+|------|--------|-----|-------|
+| 3355 | 10 | 3.00 (±~0.8, ruído) | 7.8 min |
+
+Consistente com 3.52 (L=200, MAXSIM=1000) dentro do ruído (MAXSIM=10 → erro-padrão ~0.8).
+Confirma a independência de L: **Beta=0.0213 vale para o L=3355 real**. Para um número de baixa
+incerteza a L=3355 seriam necessárias muitas simulações (~horas); a calibração precisa foi feita a
+L=200 (R0 idêntico). Nota operacional: rodadas longas (~1 h) a L=3355 em background foram
+**terminadas** quando a sessão pausou — por isso a confirmação foi feita com MAXSIM baixo em foreground.
 
 ### Como reproduzir
 ```
