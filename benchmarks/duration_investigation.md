@@ -177,3 +177,38 @@ espacial diferente → epidemia diferente. Testar exigiria contadores separados 
 
 **Conclusão prática:** a equivalência exata serial↔GPU é difícil — é uma diferença emergente da
 dinâmica espacial paralela, não um bug pontual. Opções no fim deste doc.
+
+---
+
+## 🎯 REVIRAVOLTA: o "3×" era RUÍDO de MAXSIM=5 (Exp G)
+
+Hipótese B (balanço de mecanismos) testada com contadores por mecanismo (epidemia SP, β=0.0213, L=300):
+
+| | susc-driven | infected-driven | split |
+|---|---|---|---|
+| Serial | 92657 | 13404 | 87.4% / 12.6% |
+| GPU | 292039 | 48262 | 85.8% / 14.2% |
+
+**Split quase idêntico** → B refutada. Mas o total GPU é 3.2× o serial — então fui checar a robustez
+do "3×" com mais simulações (perto do limiar a epidemia é **bimodal**: alguns sims decolam ~80%,
+outros fracassam ~0%; com MAXSIM=5 a média é instável):
+
+| MAXSIM | Serial (β=0.0213) | GPU (β=0.0213) | GPU (β=0.0243 calibrado) |
+|--------|-------------------|----------------|--------------------------|
+| 5 | **21%** (azar) | 66% | — |
+| **30** | **70.4%** | **66.3%** | **73.5%** |
+
+**O "3×" era artefato de MAXSIM=5.** Com 30 sims, serial (70%) ≈ GPU (66%) no mesmo Beta (~4–6%),
+e com o Beta calibrado serial 70% vs GPU 73.5% (**3.5 pp**). **Serial e GPU CONCORDAM.**
+
+## ✅ CONCLUSÃO FINAL DA INVESTIGAÇÃO
+
+1. **Serial e GPU concordam** (~3–6% no ataque) com estatística adequada (MAXSIM≥30). A "divergência
+   de 3×" foi **ruído de amostra pequena (MAXSIM=5)** numa epidemia **bimodal** perto do limiar.
+2. Confirmado rigorosamente: durações de TODOS os estados, transmissão por passo, balanço de
+   mecanismos, RNG — **idênticos** serial↔GPU.
+3. **2 bugs reais corrigidos:** `idx>=L*L` em S/E_kernel (74c4b69); reporte do dia-0 (anotado).
+4. A **calibração de R0 por implementação funciona** (serial β=0.0213, GPU β=0.0243 → ataques 70% vs
+   73.5%, concordância boa).
+5. **Recomendação prática para a monografia:** usar **MAXSIM ≥ 30** (não 5/10) — a epidemia de SP é
+   bimodal perto do limiar e precisa de média sobre mais realizações para ser estável.
