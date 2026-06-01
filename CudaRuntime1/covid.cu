@@ -117,12 +117,9 @@ int main(int argc, char* argv[]) {
     setupCityParameters(city);
     setupGPUConstants();
 
-    // Simulation parameters
-    const int L = 100;   // Grid size (small for testing)
+    // Simulation parameters (L, N, MAXSIM vêm de define.h)
     const int gridSize = (L + 2) * (L + 2);
-    const int N = L * L;
     const int DAYS_TO_RUN = 400;
-    const int MAXSIM = 5;
 
     printf("Grid size: %d x %d = %d cells\n", L, L, N);
     printf("Running for %d days, %d simulations\n", DAYS_TO_RUN, MAXSIM);
