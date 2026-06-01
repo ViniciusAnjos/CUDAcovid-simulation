@@ -140,21 +140,68 @@ Início: 5 indivíduos em IP, restante S.
 3. **Substituição de morto com distribuição errada** — GPU usava 3 baldes (0-20,20-59,60-89);
    corrigido para rejection sampling com `ProbNaturalDeath` igual ao original
 4. **Invariante `AgeDeathYears >= AgeYears`** — swap de idades não era feito após substituição
+5. **`L=100`/`MAXSIM=5` hardcoded no `main()` do `covid.cu`** (commit `1c01ab2`) — o `main()`
+   declarava `const int L = 100` e `const int MAXSIM = 5` locais ("small for testing"), fazendo
+   *shadow* das globais de `define.h`. Resultado: a GPU **sempre** rodava L=100/MAXSIM=5,
+   independentemente do `define.h` — toda validação anterior ficou presa em grid 100×100.
+   Removidas as locais de `L`, `N` e `MAXSIM`; agora usa as globais (`gridSize` e `DAYS_TO_RUN`
+   continuam locais).
 
 ---
 
-## Estado atual da validação
+## Benchmark São Paulo (L=3355, MAXSIM=10, 400 dias) — 2026-06-01
 
-**Problema em aberto:** Com L=100, MAXSIM=5, os resultados serial e GPU divergem significativamente:
-- Serial: epidemia explode rapidamente (S cai para ~0.06 no dia 25)
-- GPU: propagação muito lenta (S ainda ~0.98 no dia 25)
+Primeira comparação serial × GPU no tamanho real de São Paulo (após corrigir o bug #5).
+Resultados completos em `benchmarks/serial_runs.md` (Run #1 serial, #2/#3 GPU).
 
-**Hipóteses investigar:**
-1. `spreadInfection_kernel` pode estar com conflito de `Checked`/`Exponent` com `S_kernel`,
-   fazendo infecções serem canceladas
-2. O RNG per-thread da GPU com L pequeno pode gerar viés
-3. A ordem de execução dos kernels pode estar causando que `Checked=1` do `S_kernel`
-   bloqueie o `spreadInfection_kernel` no mesmo timestep
+### ⏱️ Speedup (resultado sólido)
+
+| Implementação | Tempo total (10 sims) | Por sim | Speedup |
+|---------------|-----------------------|---------|---------|
+| Serial (CPU, 1 thread) | ~97.7 min (5862 s) | ~9.8 min | 1× |
+| GPU (RTX 4070 SUPER) | 67.5 s | ~6.75 s | **~87×** |
+
+O speedup independe do Beta (tempo dominado pelo tamanho do grid).
+
+### 📊 Resultados (dia 400) — divergem
+
+| Métrica | Serial (β=0.0658) | GPU (β=0.0658) | GPU (β=0.0163) |
+|---------|-------------------|----------------|----------------|
+| Taxa de ataque (1−S) | 52.0% | **81.1%** | ~0% (extinta) |
+| Recuperados | 44.5% | 81.0% | 0% |
+| Mortes COVID | 6.15% | 12.68% | 0% |
+| Pico TotalInfectious | 0.56% (dia 372) | 1.18% (dia 252) | 0 |
+
+---
+
+## Estado atual da validação (PROBLEMA EM ABERTO)
+
+**Diagnóstico atualizado (com L grande, pós-fix #5):** com **mesmo Beta=0.0658**, a GPU produz uma
+epidemia **mais intensa e mais rápida** que o serial (ataque 81% vs 52%, pico ~120 dias antes).
+→ **A GPU transmite MAIS que o serial no mesmo Beta** — o mecanismo de spread da GPU está mais
+"quente". (Obs.: a antiga observação "GPU lenta demais" era no regime L=100 com o bug #5 ativo;
+descartada.)
+
+**Sobre o Beta / calibração R0:** a calibração do branch `r0` (β=0.0163 → R0=3.5 no modo
+paciente-zero) **NÃO transfere para o full-sim**: com β=0.0163 a epidemia full-sim **se extingue**
+(R0_efetivo < 1). Provável causa: aquela medição de R0 foi **inflada** pelo bug conhecido (o
+`S_kernel` não checava `PatientZeroID`, então infecções secundárias entravam na conta do paciente
+zero). Conclusão: **0.0163 nunca deu R0=3.5 de verdade**, e o full-sim GPU precisa de calibração
+própria (ou correção do spread antes).
+
+**Fato-chave para o debug:** comparar sempre com **mesmo Beta e mesmo L**. No full-sim NÃO há
+restrição de paciente-zero; o `d_Beta` é aplicado a TODA transmissão em `gpu_neighbors.cuh`:
+- linha ~143: `1 - pow(1-d_Beta, infectiousContacts)` → contágio do suscetível (caminho S_kernel)
+- linha ~119: `1 - pow(1-d_Beta, oldval+1)` → contágio via infectado (spreadInfection)
+
+**Hipótese principal (a investigar):** dupla contagem / falha de deduplicação. Um suscetível pode
+ser infectado no mesmo passo pelo **S_kernel** (ele procura infectados) **e** pelo
+**spreadInfection** (um infectado mira nele). Se `Checked`/`Exponent` não estão evitando isso na
+GPU como no serial, a GPU super-transmite → explica 81% vs 52%.
+
+**Próxima ação combinada:** diff de mecanismo lado a lado:
+`Neighbors.h`+`Neighborsinfected.h` (serial) × `checkAllContacts`+`spreadInfection` (GPU),
+focando em `Checked`/`Exponent` e na ordem dos kernels no dia.
 
 ---
 
@@ -179,9 +226,10 @@ nvcc test_runner.cu -o test_runner.exe -arch=sm_89
 .\test_runner.exe   # deve mostrar: ALL TESTS PASSED (15/15)
 ```
 
-Parâmetros de teste rápido (em `define.h` e `covid.cu` main):
-- `L = 100`, `MAXSIM = 5` para comparação rápida serial/GPU
-- `L = 3200`, `MAXSIM = 10` para simulação completa
+Parâmetros (apenas em `define.h` — após o fix #5, `covid.cu` lê `L`/`N`/`MAXSIM` das globais):
+- `L = 100`, `MAXSIM = 5` para comparação/depuração rápida serial/GPU (roda em segundos)
+- `L = 3355`, `MAXSIM = 10` para simulação completa de São Paulo (serial ~98 min, GPU ~68 s)
+- Cidade: serial em `kernel.cu` (`cities(SP)`); GPU em `covid.cu` (`int city = SP`)
 
 GPU: NVIDIA RTX 4070 SUPER (sm_89, compute 8.9)
 
@@ -197,13 +245,19 @@ GPU: NVIDIA RTX 4070 SUPER (sm_89, compute 8.9)
 
 Colunas: `dias S E IP IA TotalInfectious H ICU Recovered DeadCovid`
 
+- `benchmarks/serial_runs.md` — log de cada rodada (parâmetros, tempo/benchmark, sumário e
+  comparação serial×GPU). **Atualizar a cada nova execução** (prática combinada com o autor).
+
 ---
 
 ## Próximos passos
 
-1. **Diagnosticar divergência serial/GPU** — investigar `spreadInfection_kernel` vs `S_kernel`
-   e o uso de `Checked`/`Exponent` para evitar dupla infecção
-2. **Calibrar Beta na GPU** — verificar se β=0.0658 produz R0≈3.5 na implementação GPU
-3. **Benchmark de performance** — medir speedup GPU vs serial para L=3200
-4. **Testar todas as 4 cidades** — SP, Rocinha, Brasília, Manaus
-5. **Abrir PR** no GitHub: `ViniciusAnjos/CUDAcovid-simulation`
+1. **Diagnosticar a divergência do spread (PRIORIDADE)** — com mesmo Beta a GPU transmite mais
+   que o serial. Fazer diff de mecanismo `Neighbors`/`Neighborsinfected` (serial) ×
+   `checkAllContacts`/`spreadInfection` (GPU), focando em `Checked`/`Exponent` (dupla infecção)
+   e ordem dos kernels no dia.
+2. **Recalibrar Beta no full-sim GPU** — após corrigir o spread, variar β no full-sim até bater
+   R0≈3.5 / casar com o serial (ataque ~52%). A calibração paciente-zero (0.0163) não vale aqui.
+3. **Benchmark de performance** — ✅ feito para SP L=3355 (~87× speedup). Estender p/ outras cidades.
+4. **Testar todas as 4 cidades** — SP ✅ (serial+GPU), faltam Rocinha, Brasília, Manaus.
+5. **Abrir PR** no GitHub: `ViniciusAnjos/CUDAcovid-simulation`.
