@@ -180,18 +180,24 @@ infecta **diretamente** em uma população 100% suscetível.
 
 ## Calibração R0 — progresso (branch `r0`)
 
-### Resultados confirmados
-| Beta   | R0 médio (1000 sims) | Confiável |
-|--------|----------------------|-----------|
-| 0.3000 | 56.31                | ✓         |
-| 0.0200 | 4.66                 | ✓         |
-| 0.0150 | 4.42                 | ✓         |
-| 0.0125 | 2.68                 | ✓         |
-| 0.0124 | 2.54                 | ✓         |
-| 0.0100 | 2.47                 | ✓         |
+### ✅ CALIBRAÇÃO CONCLUÍDA: **Beta = 0.0163 → R0 = 3.50** (alvo atingido)
 
-**Intervalo atual:** Beta ∈ [0.0125, 0.015], R0 ∈ [2.68, 4.42], alvo = 3.5
-**Próximo valor a testar:** Beta = 0.0138 (midpoint)
+`define.h` está com `const double Beta = 0.0163`.
+
+### Resultados confirmados (código atual, pós-fix early-stopping, 1000 sims)
+| Beta   | R0 médio | Confiável |
+|--------|----------|-----------|
+| 0.0138 | 2.98     | ✓         |
+| 0.0144 | 3.10     | ✓         |
+| 0.0147 | 3.17     | ✓         |
+| 0.0150 | 3.24     | ✓         |
+| 0.0162 | 3.48     | ✓         |
+| **0.0163** | **3.50** | ✓ (alvo) |
+
+> ⚠️ Os valores antigos (0.0150→4.42, 0.0200→4.66, etc.) foram medidos **antes** do
+> fix de early-stopping/reset e estavam inflados. A re-medição de 0.0150 com o código
+> atual deu 3.24, não 4.42 — descartar a tabela antiga. A relação β×R0 é ~linear nesta
+> faixa, slope ≈ 217/unidade de β.
 
 ### Implementação da calibração (branch `r0`)
 - `PATIENT_ZERO_ONLY_MODE` ativo em `gpu_define.cuh`
