@@ -23,18 +23,18 @@ Objetivo: encontrar, para cada cidade, o valor de `Beta` no qual a **simulação
 |--------|------|-----------|------------|---------------------------|------------|---------|
 | São Paulo | 3355 | Alta | Moore (8) | 1.5 / 18.5  (doc 2–19) | 0.00247452 | 0.00043782 |
 | Rocinha | 264 | Alta | Moore (8) | 1.5 / 119.5 (doc 2–120) | 0.00055111 | 0.00014592 |
-| Brasília | 1604 | Baixa | **ver ⚠️** | 1.5 / 2.5 (doc 2) | 0.00260879 | 0.00040114 |
-| Manaus | 1343 | Baixa | **ver ⚠️** | 1.5 / 2.5 (doc 2) | 0.00187124 | 0.00027858 |
+| Brasília | 1604 | Baixa | Von Neumann (4) | 1.5 / 2.5 (doc 2) | 0.00260879 | 0.00040114 |
+| Manaus | 1343 | Baixa | Von Neumann (4) | 1.5 / 2.5 (doc 2) | 0.00187124 | 0.00027858 |
 
 Parâmetros da doença (latência, durações IP/IA/IS, probabilidades de transição): iguais para todas
 as cidades (de `define.h`, inalterados).
 
-> ⚠️ **Bug latente descoberto (`Neighbors.h`):** `#if(Density==HIGH)` é avaliado pelo
-> **pré-processador**, onde `Density` e `HIGH` (variáveis runtime, não macros) viram 0 →
-> `#if(0==0)` → **sempre verdadeiro**. Logo o serial usa **Moore (8 vizinhos) para TODAS as
-> cidades**, mesmo Brasília/Manaus (que pela doc seriam Von Neumann/4). A calibração abaixo usa o
-> comportamento real do código (Moore). Se quiser Von Neumann para BRA/MAN conforme a doc, é preciso
-> corrigir o `#if` para um `if` runtime e recalibrar.
+> ✅ **Bug corrigido (`Neighbors.h`):** `#if(Density==HIGH)` era avaliado pelo **pré-processador**
+> (onde `Density`/`HIGH`, variáveis runtime, viravam 0 → `#if(0==0)` → sempre verdadeiro), fazendo o
+> serial usar **Moore (8) para TODAS as cidades**. Trocado para `if (Density == HIGH)` **runtime**,
+> então agora BRA/MAN usam **Von Neumann (4 vizinhos)** conforme a doc. SP/ROC (alta densidade)
+> seguem Moore — verificado: R0 de SP inalterado (3.517). BRA/MAN foram **recalibrados** com Von
+> Neumann (precisam de Beta maior: 0.102 vs 0.0608 com Moore).
 
 ## Achado: R0 é INDEPENDENTE de L (verificado com dados)
 
@@ -82,17 +82,17 @@ L=3355** para registrar o número no L real. MAXSIM=300 na busca.
 |--------|-------------------|------------------|-----------------|------------|
 | **São Paulo** | **0.02129** | 3.52 | 1.5/18.5 (2–19) | Moore (8) |
 | **Rocinha** | **0.00461** | 3.53 | 1.5/119.5 (2–120) | Moore (8) |
-| **Brasília** | **0.06077** | 3.46 | 1.5/2.5 (2) | Moore (8) ⚠️ |
-| **Manaus** | **0.06077** | 3.46 | 1.5/2.5 (2) | Moore (8) ⚠️ |
+| **Brasília** | **0.102** | 3.51 | 1.5/2.5 (2) | Von Neumann (4) |
+| **Manaus** | **0.102** | 3.51 | 1.5/2.5 (2) | Von Neumann (4) |
 
 Observações:
-- Ordem dos Betas faz sentido físico: mais contatos → menor Beta para o mesmo R0.
-  ROC (até 120 contatos) precisa do menor Beta; BRA/MAN (~2 contatos) o maior.
+- Ordem dos Betas faz sentido físico: mais contatos/vizinhos → menor Beta para o mesmo R0.
+  ROC (até 120 contatos) precisa do menor Beta; BRA/MAN (~2 contatos + só 4 vizinhos) o maior.
 - O `Beta=0.0658` antigo do `define.h` **não** dá R0=3.5 para SP com contatos 2–19 (dá R0≈7.8);
   ele correspondia aos contatos antigos (~2). Para SP com a doc (2–19), R0=3.5 ⇒ **Beta≈0.0213**.
-- ⚠️ BRA/MAN: calibrados com **Moore (8)** porque o serial sempre usa Moore (bug do `#if(Density==HIGH)`).
-  Pela doc seriam Von Neumann (4 vizinhos); com 4 vizinhos o R0 seria menor e o Beta **maior**.
-  Recalibrar após corrigir o `#if` se quiser fidelidade à doc para baixa densidade.
+- **BRA = MAN** (idênticos: mesmos contatos, mesma vizinhança Von Neumann; leitos/UTI não afetam R0).
+- **Histórico Von Neumann (BRA/MAN, MAXSIM=1000):** 0.0608→2.49 ; 0.0854→3.14 ; 0.0952→3.37 ;
+  0.0989→3.44 ; **0.102→3.51** (final). Com Moore (antes do fix) era 0.0608→3.46.
 
 ### Confirmação em L=3355 (L real de SP)
 R0 é independente de L (provado no sweep). Confirmação de SP a L=3355, Beta=0.021293:

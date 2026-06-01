@@ -44,7 +44,7 @@ int Neighborsfunc(int i, int j)
 	}
 
 
-#if(Density==HIGH)  // high demographic density
+	if (Density == HIGH)  // high demographic density (runtime, nao preprocessador)
 	{
 		/* Check 8 neighbors in the lattice */
 		for (k = -1; k <= 1; k++)
@@ -53,7 +53,7 @@ int Neighborsfunc(int i, int j)
 					Person[i + k][j + l].Health == IA || Person[i + k][j + l].Health == H || Person[i + k][j + l].Health == ICU)
 					KI++;
 	}
-#else
+	else
 	{
 
 
@@ -67,7 +67,6 @@ int Neighborsfunc(int i, int j)
 		else if (Person[i][j + 1].Health == IP || Person[i][j + 1].Health == ISLight || Person[i][j + 1].Health == ISModerate || Person[i][j + 1].Health == ISSevere || Person[i][j + 1].Health == IA || Person[i][j + 1].Health == H || Person[i][j + 1].Health == ICU)
 			KI++;
 	}
-#endif
 
 	if (KI > 0) // Calculate ProbContagion
 		ProbContagion = 1.0 - pow(1.0 - Beta, (double)KI);
