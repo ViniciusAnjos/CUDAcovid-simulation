@@ -42,7 +42,7 @@ const int TimeTiggerIsolation = 15; // days
 const int IsolationYes = 1;
 const int IsolationNo = 0;
 
-/** Beta for 1000 average and r0 = 3.5**/
+/** Beta = 0.0658 (mesmo do serial) — baseline para investigar a divergencia do spread **/
 const double Beta = 0.0658;
 
 const double AverageOcupationRateBeds = 0.5;     // average ocupation rate of hospital beds due to others diseases
