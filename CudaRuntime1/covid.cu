@@ -176,12 +176,12 @@ int main(int argc, char* argv[]) {
         // Distribute initial infections
         distributeInitialInfections_kernel << <1, 1 >> > (
             d_population, d_rngStates, d_stateCounts, d_newCounts, L,
-            0,  // Eini
-            5,  // IPini
-            0,  // IAini
-            0,  // ISLightini
-            0,  // ISModerateini
-            0   // ISSevereini
+            Eini,            // de define.h
+            IPini,           // de define.h (era 5 hardcoded)
+            IAini,
+            ISLightini,
+            ISModerateini,
+            ISSevereini
             );
         cudaDeviceSynchronize();
 

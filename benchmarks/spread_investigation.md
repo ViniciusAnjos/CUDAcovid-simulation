@@ -254,3 +254,65 @@ não dependa do RNG (ex.: alvo lido de um índice/estado sutilmente diferente).
 > Notas: experimentos com L=100, MAXSIM=5, infected-driven desligado nos dois (ablação), contatos
 > fixos em 10 (exceto Exp 1/3). Mudanças de código foram revertidas ao baseline após os testes;
 > este documento é o registro.
+
+#### Exp 9 — Agente-dias infecciosos (Beta=0, IPini=2000): hipótese da duração REFUTADA
+Mede a duração infecciosa via integral da prevalência (IP+IA+ISLight) com transmissão zerada.
+
+| Agente-dias | IP+IA | ISLight | Total |
+|---|---|---|---|
+| Serial | 1.443 | 0.168 | 1.611 |
+| GPU | 1.251 | 0.166 | 1.417 |
+
+GPU tem **12% MENOS** agente-dias infecciosos (não mais) → a duração **NÃO** explica o GPU mais
+quente; se algo, deveria esfriar. **Hipótese da duração descartada.** (A GPU super-transmite
+*apesar* de menos agente-dias.)
+
+> 🐛 **Bug encontrado:** `covid.cu` chamava `distributeInitialInfections_kernel(..., 5 /*IPini*/, ...)`
+> com os contadores iniciais **hardcoded** (IPini=5, resto 0), ignorando o `define.h`. Corrigido
+> para usar os globais (`Eini, IPini, IAini, ...`). (Análogo ao bug do L=100/MAXSIM=5.)
+
+#### Exp 10 — Transmissão por-passo, uma geração (IPini=2000, β=0.005, mecanismo completo)
+New_E (incidência) por dia, dos 2000 IP densos:
+
+| dia | New_E serial | New_E GPU | razão |
+|----:|-------------:|----------:|------:|
+| 1 | 0.01632 | 0.01680 | **1.03** |
+| 2 | 0.01590 | 0.01636 | 1.03 |
+| 3 | 0.01632 | 0.01478 | 0.91 |
+
+Curva S(t) (dif GPU−serial): −0.0024 (dia 1) → −0.012 (dia 10) → −0.025 (dia 80, estabiliza).
+Ataque dos suscetíveis disponíveis: serial 0.107, GPU 0.132 (**GPU ~23% mais**).
+
+**→ A transmissão POR PASSO difere só ~3% (GPU maior).** Pequena, mas **determinística e cumulativa**:
+compõe ao longo de ~15 gerações até diferença visível de epidemia; em regime quase-limiar (Exp 8),
+3% no R0 separa "extinguir" de "sustentar" → o efeito ~3×.
+
+---
+
+## 🎯 CONCLUSÃO DA INVESTIGAÇÃO
+
+**A divergência serial×GPU NÃO é um bug grosseiro de mecanismo.** É uma diferença **~3% na
+probabilidade de transmissão por passo**, no canal de **contatos aleatórios** do suscetível-driven,
+que **compõe** geração a geração.
+
+Evidências:
+- Local-only: serial = GPU (Exp 3). ✓
+- Infected-driven: equivalente (Exp 2, leitura). ✓
+- Por-passo (1 geração): diferença ~3% (Exp 10).
+- Duração infecciosa: GPU 12% menor (Exp 9) — não é a causa.
+- Descartados: nº de contatos, RNG (seeding/output), auto-evitação (Exp 4–7).
+
+**Origem provável dos ~3%:** diferenças estruturais menores na amostragem dos contatos aleatórios
+(auto-evitação linha/coluna vs célula exata; arredondamento; ordem de processo) — cada uma ~1–2%.
+Determinística (independe do RNG).
+
+**Recomendações:**
+1. **Caminho pragmático (alinhado ao plano da monografia):** calibrar o **Beta da GPU
+   separadamente** (o CLAUDE.md já prevê isso) — um Beta ~3% menor na GPU faria as epidemias
+   coincidirem. A GPU está essencialmente correta.
+2. **Caminho de equivalência exata:** alinhar a amostragem de contatos aleatórios (auto-evitação +
+   arredondamento) entre os dois, e re-verificar.
+
+**Bugs encontrados e corrigidos no caminho:** L=100/MAXSIM=5 hardcoded (commit 1c01ab2);
+IPini=5 hardcoded no `distributeInitialInfections` (a commitar).
+**Pendência separada:** discrepância 90+ em ProbRecoveryH/ICU (ver topo do doc).
