@@ -53,12 +53,14 @@ __device__ ContactResult checkRandomContacts(int i, int j, int L,
     for (int contact = 0; contact < randomContacts; contact++) {
         // Generate random position (avoiding self)
         int randI, randJ;
+        int gSelf = 0;   // GUARD anti-trava (RNG degenerado, ver tdr_investigation.md)
         do {
             rn = generateRandom(rngState);
             randI = (int)(rn * L) + 1;
 
             rn = generateRandom(rngState);
             randJ = (int)(rn * L) + 1;
+            if (++gSelf > 100) break;
         } while (randI == i && randJ == j);
 
         // Check if random contact is infectious
@@ -101,12 +103,14 @@ __device__ void spreadInfection_kernel(int i, int j, GPUPerson* population,
 
     for (int contact = 0; contact < randomContacts; contact++) {
         int Randomi, Randomj;
+        int gSelf = 0;   // GUARD anti-trava (RNG degenerado, ver tdr_investigation.md)
         do {
             rn = generateRandom(rngState);
             Randomi = (int)(rn * L) + 1;
 
             rn = generateRandom(rngState);
             Randomj = (int)(rn * L) + 1;
+            if (++gSelf > 100) break;
         } while (Randomi == i && Randomj == j);
 
         int randomIdx = to1D(Randomi, Randomj, L);

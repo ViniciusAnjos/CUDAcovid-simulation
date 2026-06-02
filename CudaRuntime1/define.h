@@ -21,9 +21,9 @@ const int ISSevere = 14;
 const double MAXNUM = 4294967295.;             /* for 32 bits compilers */
 
 const int DAYS = 400;        /* Number of days simulated */
-const int MAXSIM = 5;        /* Number of simulations to evaluate averages */
+const int MAXSIM = 50;        /* Number of simulations to evaluate averages */
 
-const int L = 100;
+const int L = 3355;
 const int N = L * L;
 
 //cities
@@ -43,7 +43,7 @@ const int IsolationYes = 1;
 const int IsolationNo = 0;
 
 /** Beta = 0.0658 (mesmo do serial) — baseline para investigar a divergencia do spread **/
-const double Beta = 0.0658;
+const double Beta = 0.0243;
 
 const double AverageOcupationRateBeds = 0.5;     // average ocupation rate of hospital beds due to others diseases
 const double AverageOcupationRateBedsICU = 0.5;  // average ocupation rate of hospital beds due to others diseases

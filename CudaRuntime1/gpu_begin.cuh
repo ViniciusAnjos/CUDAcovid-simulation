@@ -63,6 +63,7 @@ __global__ void initPopulation_kernel(GPUPerson* population, unsigned int* rngSt
         // PROPER DEATH AGE ASSIGNMENT using rejection sampling (like original)
         // Define age of natural death using probability distribution
         mute = 0;
+        int guardDeath = 0;   // GUARD: nunca trava se o RNG degenerar (ver tdr_investigation.md)
         do {
             rn = generateRandom(myRNG);
             population[idx].AgeDeathYears = (int)(rn * 100);
@@ -73,6 +74,11 @@ __global__ void initPopulation_kernel(GPUPerson* population, unsigned int* rngSt
             }
             else {
                 mute = 0; // reject, try again
+            }
+
+            if (++guardDeath > 10000) {   // fallback: idade-limite
+                population[idx].AgeDeathYears = 99;
+                mute = 1;
             }
         } while (mute < 1);
 
@@ -112,6 +118,7 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
         int i, j, personIdx;
 
         // Find a susceptible person
+        int gFind = 0;   // GUARD anti-trava (RNG degenerado, ver tdr_investigation.md)
         do {
             double rn = generateRandom(&localState);
             i = (int)(rn * L) + 1;
@@ -120,6 +127,7 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
             j = (int)(rn * L) + 1;
 
             personIdx = to1D(i, j, L);
+            if (++gFind > 1000000) break;
         } while (population[personIdx].Health != d_S);
 
         // Change to Exposed
@@ -142,6 +150,7 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
         int i, j, personIdx;
 
         // Find a susceptible person
+        int gFind = 0;   // GUARD anti-trava (RNG degenerado, ver tdr_investigation.md)
         do {
             double rn = generateRandom(&localState);
             i = (int)(rn * L) + 1;
@@ -150,6 +159,7 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
             j = (int)(rn * L) + 1;
 
             personIdx = to1D(i, j, L);
+            if (++gFind > 1000000) break;
         } while (population[personIdx].Health != d_S);
 
         // Change to IP
@@ -172,6 +182,7 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
         int i, j, personIdx;
 
         // Find a susceptible person
+        int gFind = 0;   // GUARD anti-trava (RNG degenerado, ver tdr_investigation.md)
         do {
             double rn = generateRandom(&localState);
             i = (int)(rn * L) + 1;
@@ -180,6 +191,7 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
             j = (int)(rn * L) + 1;
 
             personIdx = to1D(i, j, L);
+            if (++gFind > 1000000) break;
         } while (population[personIdx].Health != d_S);
 
         // Change to IA
@@ -202,6 +214,7 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
         int i, j, personIdx;
 
         // Find a susceptible person
+        int gFind = 0;   // GUARD anti-trava (RNG degenerado, ver tdr_investigation.md)
         do {
             double rn = generateRandom(&localState);
             i = (int)(rn * L) + 1;
@@ -210,6 +223,7 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
             j = (int)(rn * L) + 1;
 
             personIdx = to1D(i, j, L);
+            if (++gFind > 1000000) break;
         } while (population[personIdx].Health != d_S);
 
         // Change to ISLight
@@ -232,6 +246,7 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
         int i, j, personIdx;
 
         // Find a susceptible person
+        int gFind = 0;   // GUARD anti-trava (RNG degenerado, ver tdr_investigation.md)
         do {
             double rn = generateRandom(&localState);
             i = (int)(rn * L) + 1;
@@ -240,6 +255,7 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
             j = (int)(rn * L) + 1;
 
             personIdx = to1D(i, j, L);
+            if (++gFind > 1000000) break;
         } while (population[personIdx].Health != d_S);
 
         // Change to ISModerate
@@ -262,6 +278,7 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
         int i, j, personIdx;
 
         // Find a susceptible person
+        int gFind = 0;   // GUARD anti-trava (RNG degenerado, ver tdr_investigation.md)
         do {
             double rn = generateRandom(&localState);
             i = (int)(rn * L) + 1;
@@ -270,6 +287,7 @@ __global__ void distributeInitialInfections_kernel(GPUPerson* population,
             j = (int)(rn * L) + 1;
 
             personIdx = to1D(i, j, L);
+            if (++gFind > 1000000) break;
         } while (population[personIdx].Health != d_S);
 
         // Change to ISSevere

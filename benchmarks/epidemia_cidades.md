@@ -13,7 +13,14 @@ Branch: `sim/resultados-cidades`. Hardware: RTX 4070 SUPER.
 | Rocinha | 264 | 0.00490 | Alta (Moore) | 2–120 | 58.8% | 0.63% (d175) | 0.03% (d260) | 58.6% | 10.2% | 136 s |
 | Brasília | 1604 | 0.0995 | Baixa (Von Neumann) | 2 | 76.8% | 1.05% (d222) | 0.12% (d173) | 76.6% | 11.7% | 135 s |
 | Manaus | 1343 | 0.0995 | Baixa (Von Neumann) | 2 | 75.9% | 1.05% (d217) | 0.09% (d160) | 75.8% | 12.1% | 142 s |
-| São Paulo | 3355 | 0.0243 | Alta (Moore) | 2–19 | _(pendente)_ | | | | | |
+| **São Paulo** | 3355 | 0.0243 | Alta (Moore) | 2–19 | **72.6%** | **1.02% (d226)** | **0.11% (d193)** | **72.4%** | **11.0%** | **634 s** |
+
+> ✅ **As 4 cidades concluídas com curvas completas** em `benchmarks/curvas/<cidade>/*.dat`
+> (epidemicsprevalence, epidemicsincidence, Infectiousprevalence, Infectiousincidence — 400 dias).
+> São Paulo só completou após corrigir **dois bugs de infraestrutura** (TDR do Windows + RNG
+> degenerado que travava kernels) — ver `tdr_investigation.md`. O ataque da SP (72.6%) é
+> consistente entre rodadas (MAXSIM=5 isolado deu 72.8%), confirmando que os guards anti-trava
+> não enviesaram o resultado.
 
 Colunas dos `.dat`: `dias S E IP IA TotalInfectious H ICU Recovered DeadCovid` (médias, proporções).
 Dados brutos por cidade: `res_ROC.dat`, `res_BRA.dat`, `res_MAN.dat` (e `res_SP.dat`).

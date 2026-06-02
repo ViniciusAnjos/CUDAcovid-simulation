@@ -117,7 +117,9 @@ __device__ void replaceDeadPerson(GPUPerson* person, unsigned int* rngState,
 
     // FIX: Rejection sampling for age of death using ProbNaturalDeath,
     // matching the original Update.h logic exactly.
+    // GUARD: limita iteracoes p/ nunca travar caso o RNG degenere (ver tdr_investigation.md).
     int mute = 0;
+    int guard = 0;
     do {
         rn = generateRandom(rngState);
         person->AgeDeathYears = (int)(rn * 100);
@@ -127,6 +129,11 @@ __device__ void replaceDeadPerson(GPUPerson* person, unsigned int* rngState,
             mute = 1;
         else
             mute = 0;
+
+        if (++guard > 10000) {           // fallback: aceita idade-limite e sai
+            person->AgeDeathYears = 99;
+            mute = 1;
+        }
     } while (mute < 1);
 
     person->AgeDeathDays = person->AgeDeathYears * 365;

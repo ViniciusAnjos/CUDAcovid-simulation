@@ -121,8 +121,18 @@ int main(int argc, char* argv[]) {
     const int gridSize = (L + 2) * (L + 2);
     const int DAYS_TO_RUN = 400;
 
+    // TDR-resilience: permite rodar em chunks curtos via linha de comando.
+    //   argv[1] = MAXSIM desta rodada (override do define.h)
+    //   argv[2] = seedBase (deslocamento do indice de simulacao p/ sementes distintas por chunk)
+    int maxsim   = MAXSIM;
+    int seedBase = 0;
+    if (argc > 1) maxsim   = atoi(argv[1]);
+    if (argc > 2) seedBase = atoi(argv[2]);
+    if (maxsim < 1) maxsim = 1;
+
     printf("Grid size: %d x %d = %d cells\n", L, L, N);
-    printf("Running for %d days, %d simulations\n", DAYS_TO_RUN, MAXSIM);
+    printf("Running for %d days, %d simulations (seedBase=%d)\n", DAYS_TO_RUN, maxsim, seedBase);
+    fflush(stdout);
 
     // Initialize output files using existing system
     initializeOutputFiles();
@@ -155,15 +165,17 @@ int main(int argc, char* argv[]) {
     }
 
     // Run multiple simulations for averaging
-    for (int simulation = 1; simulation <= MAXSIM; simulation++) {
-        printf("\n=== Simulation %d/%d ===\n", simulation, MAXSIM);
+    for (int simulation = 1; simulation <= maxsim; simulation++) {
+        printf("\n=== Simulation %d/%d ===\n", simulation, maxsim);
+        fflush(stdout);
 
         // CORRECTED: Initialize counters only at START of simulation
         initSimulationCounters_kernel << <1, 1 >> > (N);  // ? ADD THIS LINE
         cudaDeviceSynchronize();
 
         // Initialize RNG with unique seed per simulation
-        unsigned int seed = 893221891 * simulation;
+        // seedBase desloca o indice global p/ que chunks diferentes usem sementes distintas
+        unsigned int seed = 893221891u * (unsigned int)(seedBase + simulation);
         initRNG << <numBlocks, blockSize >> > (d_rngStates, seed, gridSize);
         cudaDeviceSynchronize();
 
@@ -240,6 +252,17 @@ int main(int argc, char* argv[]) {
 
             runSimulationDay(d_population, d_rngStates, L, day, blockSize, numBlocks);
 
+            // TDR-resilience: detecta reset de driver / falha de kernel e ABORTA com codigo !=0
+            // em vez de continuar e gravar resultado-lixo (ataque=1, .dat vazios).
+            cudaError_t cerr = cudaDeviceSynchronize();
+            if (cerr == cudaSuccess) cerr = cudaGetLastError();
+            if (cerr != cudaSuccess) {
+                printf("\n[CUDA-FAIL] sim=%d day=%d erro=%s (provavel TDR/reset de driver)\n",
+                       simulation, day, cudaGetErrorString(cerr));
+                fflush(stdout);
+                return 3;   // codigo !=0 -> driver de chunk faz retry
+            }
+
             // Get statistics
             getCountersFromDevice(h_totals, h_new_cases);
             writeDailySimulationData(simulation, day, h_totals, h_new_cases, N);
@@ -277,29 +300,29 @@ int main(int argc, char* argv[]) {
 
     // Calculate means across all simulations
     for (int t = 1; t <= DAYS_TO_RUN; t++) {
-        S_Mean[t] = S_Sum[t] / (double)MAXSIM;
-        E_Mean[t] = E_Sum[t] / (double)MAXSIM;
-        IP_Mean[t] = IP_Sum[t] / (double)MAXSIM;
-        IA_Mean[t] = IA_Sum[t] / (double)MAXSIM;
-        ISLight_Mean[t] = ISLight_Sum[t] / (double)MAXSIM;
-        ISModerate_Mean[t] = ISModerate_Sum[t] / (double)MAXSIM;
-        ISSevere_Mean[t] = ISSevere_Sum[t] / (double)MAXSIM;
-        H_Mean[t] = H_Sum[t] / (double)MAXSIM;
-        ICU_Mean[t] = ICU_Sum[t] / (double)MAXSIM;
-        Recovered_Mean[t] = Recovered_Sum[t] / (double)MAXSIM;
-        DeadCovid_Mean[t] = DeadCovid_Sum[t] / (double)MAXSIM;
+        S_Mean[t] = S_Sum[t] / (double)maxsim;
+        E_Mean[t] = E_Sum[t] / (double)maxsim;
+        IP_Mean[t] = IP_Sum[t] / (double)maxsim;
+        IA_Mean[t] = IA_Sum[t] / (double)maxsim;
+        ISLight_Mean[t] = ISLight_Sum[t] / (double)maxsim;
+        ISModerate_Mean[t] = ISModerate_Sum[t] / (double)maxsim;
+        ISSevere_Mean[t] = ISSevere_Sum[t] / (double)maxsim;
+        H_Mean[t] = H_Sum[t] / (double)maxsim;
+        ICU_Mean[t] = ICU_Sum[t] / (double)maxsim;
+        Recovered_Mean[t] = Recovered_Sum[t] / (double)maxsim;
+        DeadCovid_Mean[t] = DeadCovid_Sum[t] / (double)maxsim;
 
-        New_S_Mean[t] = New_S_Sum[t] / (double)MAXSIM;
-        New_E_Mean[t] = New_E_Sum[t] / (double)MAXSIM;
-        New_IP_Mean[t] = New_IP_Sum[t] / (double)MAXSIM;
-        New_IA_Mean[t] = New_IA_Sum[t] / (double)MAXSIM;
-        New_ISLight_Mean[t] = New_ISLight_Sum[t] / (double)MAXSIM;
-        New_ISModerate_Mean[t] = New_ISModerate_Sum[t] / (double)MAXSIM;
-        New_ISSevere_Mean[t] = New_ISSevere_Sum[t] / (double)MAXSIM;
-        New_H_Mean[t] = New_H_Sum[t] / (double)MAXSIM;
-        New_ICU_Mean[t] = New_ICU_Sum[t] / (double)MAXSIM;
-        New_Recovered_Mean[t] = New_Recovered_Sum[t] / (double)MAXSIM;
-        New_DeadCovid_Mean[t] = New_DeadCovid_Sum[t] / (double)MAXSIM;
+        New_S_Mean[t] = New_S_Sum[t] / (double)maxsim;
+        New_E_Mean[t] = New_E_Sum[t] / (double)maxsim;
+        New_IP_Mean[t] = New_IP_Sum[t] / (double)maxsim;
+        New_IA_Mean[t] = New_IA_Sum[t] / (double)maxsim;
+        New_ISLight_Mean[t] = New_ISLight_Sum[t] / (double)maxsim;
+        New_ISModerate_Mean[t] = New_ISModerate_Sum[t] / (double)maxsim;
+        New_ISSevere_Mean[t] = New_ISSevere_Sum[t] / (double)maxsim;
+        New_H_Mean[t] = New_H_Sum[t] / (double)maxsim;
+        New_ICU_Mean[t] = New_ICU_Sum[t] / (double)maxsim;
+        New_Recovered_Mean[t] = New_Recovered_Sum[t] / (double)maxsim;
+        New_DeadCovid_Mean[t] = New_DeadCovid_Sum[t] / (double)maxsim;
     }
 
     // Write final averaged results using existing output system
@@ -317,7 +340,7 @@ int main(int argc, char* argv[]) {
     // Final statistics
     printf("\n=== Final Statistics ===\n");
     double totalInfectious = ISLight_Mean[DAYS_TO_RUN] + ISModerate_Mean[DAYS_TO_RUN] + ISSevere_Mean[DAYS_TO_RUN];
-    printf("Final day statistics (averaged across %d simulations):\n", MAXSIM);
+    printf("Final day statistics (averaged across %d simulations):\n", maxsim);
     printf("Susceptible: %.4f\n", S_Mean[DAYS_TO_RUN]);
     printf("Exposed: %.4f\n", E_Mean[DAYS_TO_RUN]);
     printf("Infectious: %.4f\n", totalInfectious);
