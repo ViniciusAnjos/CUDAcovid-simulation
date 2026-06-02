@@ -24,7 +24,7 @@ __device__ ContactResult checkLocalContacts(int i, int j, int L, GPUPerson* popu
 
     // Check each neighbor
     for (int n = 0; n < numNeighbors; n++) {
-        if (isInfectious(population[neighborIndices[n]].Health)) {
+        if (isInfectious(d_HealthC[neighborIndices[n]])) {   // PERF: le do array compacto (cache)
             result.infectiousContacts++;
             result.anyContact = true;
         }
@@ -63,7 +63,7 @@ __device__ ContactResult checkRandomContacts(int i, int j, int L,
 
         // Check if random contact is infectious
         int randIdx = to1D(randI, randJ, L);
-        if (isInfectious(population[randIdx].Health)) {
+        if (isInfectious(d_HealthC[randIdx])) {   // PERF: le do array compacto (cache)
             result.infectiousContacts++;
             result.anyContact = true;
         }
@@ -111,7 +111,7 @@ __device__ void spreadInfection_kernel(int i, int j, GPUPerson* population,
 
         int randomIdx = to1D(Randomi, Randomj, L);
 
-        if (population[randomIdx].Health == d_S) {
+        if (d_HealthC[randomIdx] == d_S) {   // PERF: le do array compacto (cache)
 
             int oldval = atomicAdd((int*)&population[randomIdx].Exponent, 1);
 

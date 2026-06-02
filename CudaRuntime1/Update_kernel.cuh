@@ -89,6 +89,14 @@ __global__ void resetNewCounters_kernel() {
     }
 }
 
+// PERF (health-soa): sincroniza o array compacto d_HealthC a partir de population[].Health.
+// Usado para o sync inicial (apos distributeInitialInfections). Depois o update_kernel mantem.
+__global__ void syncHealthC_kernel(GPUPerson* population, int L) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= (L + 2) * (L + 2)) return;
+    d_HealthC[idx] = (unsigned char)population[idx].Health;
+}
+
 // FIX: Replaces dead person using the same rejection-sampling method as the
 // original Update.h, drawing AgeDeathYears from ProbNaturalDeath distribution.
 __device__ void replaceDeadPerson(GPUPerson* person, unsigned int* rngState,
@@ -211,6 +219,9 @@ __global__ void update_kernel(GPUPerson* population, unsigned int* rngStates,
         // checking the transition condition, matching the original .h files.
         population[personIdx].Exponent = 0;
         population[personIdx].Checked  = 0;
+
+        // PERF (health-soa): mantem o array compacto sincronizado com o Health final do dia
+        d_HealthC[personIdx] = (unsigned char)finalState;
     }
 }
 

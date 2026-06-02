@@ -107,6 +107,10 @@ __device__ double* d_SumProbBirthAge;
 __device__ int* d_AgeMin;
 __device__ int* d_AgeMax;
 
+// PERF (health-soa): array compacto de Health (1 byte/celula) para o acesso ALEATORIO
+// dos contatos caber no cache L2. Espelha population[].Health, sincronizado no update_kernel.
+__device__ unsigned char* d_HealthC;
+
 __host__ void setupCityParameters(int city) {
     printf("\nSetting up city parameters for city ID: %d\n", city);
 

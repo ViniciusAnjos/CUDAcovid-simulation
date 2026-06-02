@@ -1,4 +1,4 @@
-﻿// Corrected covid.cu - Using existing output_files.cuh system
+// Corrected covid.cu - Using existing output_files.cuh system
 // Fixes for Day 0 double-counting and DeadCovid initialization issues
 
 #include <stdio.h>
@@ -117,7 +117,7 @@ int main(int argc, char* argv[]) {
     setupCityParameters(city);
     setupGPUConstants();
 
-    // Simulation parameters (L, N, MAXSIM vêm de define.h)
+    // Simulation parameters (L, N, MAXSIM v�m de define.h)
     const int gridSize = (L + 2) * (L + 2);
     const int DAYS_TO_RUN = 400;
 
@@ -134,6 +134,11 @@ int main(int argc, char* argv[]) {
     // Initialize RNG
     unsigned int* d_rngStates;
     cudaMalloc(&d_rngStates, gridSize * sizeof(unsigned int));
+
+    // PERF (health-soa): array compacto de Health (1 byte/celula) p/ acesso aleatorio caber no cache
+    unsigned char* d_HealthC_buf;
+    cudaMalloc(&d_HealthC_buf, gridSize * sizeof(unsigned char));
+    cudaMemcpyToSymbol(d_HealthC, &d_HealthC_buf, sizeof(unsigned char*));
 
     int blockSize = 256;
     int numBlocks = (gridSize + blockSize - 1) / blockSize;
@@ -154,7 +159,7 @@ int main(int argc, char* argv[]) {
         printf("\n=== Simulation %d/%d ===\n", simulation, MAXSIM);
 
         // CORRECTED: Initialize counters only at START of simulation
-        initSimulationCounters_kernel << <1, 1 >> > (N);  // ← ADD THIS LINE
+        initSimulationCounters_kernel << <1, 1 >> > (N);  // ? ADD THIS LINE
         cudaDeviceSynchronize();
 
         // Initialize RNG with unique seed per simulation
@@ -183,6 +188,10 @@ int main(int argc, char* argv[]) {
             ISModerateini,
             ISSevereini
             );
+        cudaDeviceSynchronize();
+
+        // PERF (health-soa): sync inicial do array compacto (dia 0) antes das leituras do dia 1
+        syncHealthC_kernel << <numBlocks, blockSize >> > (d_population, L);
         cudaDeviceSynchronize();
 
         // Set available beds
@@ -225,8 +234,8 @@ int main(int argc, char* argv[]) {
         // CORRECTED: Run simulation starting from Day 1 (not Day 0 to avoid double-counting)
         for (int day = 1; day <= DAYS_TO_RUN; day++) {
 
-            resetCounters_kernel << <1, 1 >> > ();        // ← KEEP THIS (now only resets prevalence)
-            resetNewCounters_kernel << <1, 1 >> > ();     // ← KEEP THIS
+            resetCounters_kernel << <1, 1 >> > ();        // ? KEEP THIS (now only resets prevalence)
+            resetNewCounters_kernel << <1, 1 >> > ();     // ? KEEP THIS
             cudaDeviceSynchronize();
 
             runSimulationDay(d_population, d_rngStates, L, day, blockSize, numBlocks);
@@ -321,6 +330,7 @@ int main(int argc, char* argv[]) {
     printf("\nCleaning up...\n");
     cudaFree(d_population);
     cudaFree(d_rngStates);
+    cudaFree(d_HealthC_buf);   // PERF (health-soa)
     cleanupGPUConstants();
 
     printf("\nSimulation completed successfully!\n");
