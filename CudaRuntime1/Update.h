@@ -112,28 +112,14 @@ void Updatefunc()
 
 	//printf("Day=%i\n",CountDays);
 
-#if(BeginOfIsolation==ON) 
+if (BeginOfIsolation == ON)   // FIX: era #if (preprocessador) -> sempre ligava isolamento por engano
 	{
-
 		MaximumIsolated = ProportionIsolated * N;
-
-		//if(MaximumIsolated > 0)	
-		//{
 		if (sim_time == TimeTiggerIsolation)
 		{
-
-			//printf("Entrou no come�o do isolamento em t=%i\n",time);
-
-				//printf("Chamou a fun��o de isolamento em t=%i\n",time);
 			Isolationfunc();
 		}
-
-
-
-		//printf("Time=%i CountIS=%i MaximumIsolated=%i\n",CountDays,CountIS,MaximumIsolated);
-		//}
 	}
-#endif
 
 
 	DeadCovid_Total += New_DeadCovid;

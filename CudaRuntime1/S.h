@@ -25,7 +25,7 @@ void Sfunc(int i, int j)
 
 			New_E++;
 		}
-		else   // no contagion, remains S
+		else if (Person[i][j].Checked == 0)   // FIX: nao sobrescrever se infected-driven ja infectou
 			Person[i][j].Swap = S;
 	}
 }
