@@ -174,6 +174,20 @@ Todas as diferenças **dentro do ruído estatístico**. As curvas serial e GPU *
 `graficos/validacao/<cidade>_validacao_mesmobeta.png`). Destaque Rocinha: antes (serial bugado, mesmo
 β) dava **1,7%** (extinta) vs GPU 58,7%; corrigida dá **58,8%** ≈ GPU.
 
+### Quantificação da equivalência (RMSE serial × GPU, sobre 400 dias)
+
+| Cidade | RMSE S | RMSE Infecc. | RMSE R | RMSE Mortes | máx\|ΔS\| | Δataque final |
+|--------|--------|--------------|--------|-------------|-----------|---------------|
+| Rocinha | 0,76 | 0,014 | 0,75 | 0,13 | 1,7 | 0,09 |
+| Manaus | 0,86 | 0,015 | 0,83 | 0,25 | 1,9 | 0,47 |
+| Brasília | 1,13 | 0,021 | 1,10 | 0,31 | 2,6 | 0,41 |
+| São Paulo | 0,74 | 0,025 | 0,72 | 0,15 | 2,1 | 0,18 |
+
+(pontos percentuais da população). RMSE de S(t) < 1,2 p.p. e dos infecciosos < 0,03 p.p. em todas as
+cidades → diferença compatível com **ruído estatístico** (MAXSIM finito), não com viés sistemático.
+Equivalência serial↔GPU no mesmo β **formalmente confirmada**. Gráfico:
+`graficos/validacao/equivalencia_rmse.png` (script `curvas/equivalencia_quant.py`).
+
 **Conclusão da monografia:** a implementação GPU **reproduz fielmente** o modelo serial — mesmo β,
 mesmas curvas, nas 4 cidades. Não há necessidade de β separado por implementação (a calibração
 separada anterior só compensava os dois bugs do serial). Curvas serial corrigidas em
