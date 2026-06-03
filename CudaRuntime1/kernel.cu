@@ -1,9 +1,20 @@
-﻿#include<cuda_runtime.h>
+#include<cuda_runtime.h>
 #include<stdio.h>
 #include<math.h>
 #include<stdlib.h>
+#include<chrono>
 
 #include"define.h"
+
+#ifdef PROFILE
+double pBound=0,pS=0,pE=0,pIP=0,pIS=0,pH=0,pICU=0,pRec=0,pUpd=0;
+static std::chrono::high_resolution_clock::time_point _pt;
+#define PTIC _pt = std::chrono::high_resolution_clock::now()
+#define PTOC(acc) acc += std::chrono::duration<double>(std::chrono::high_resolution_clock::now()-_pt).count()
+#else
+#define PTIC
+#define PTOC(acc)
+#endif
 
 struct Individual
 {
@@ -188,7 +199,7 @@ double TotalInfectiousNew;
 int AvailableBeds;
 int AvailableBedsICU;
 
-// (variables already declared in define.h — removed duplicates)
+// (variables already declared in define.h � removed duplicates)
 
 char nomeincidence[30];
 char nomeprevalence[30];
@@ -254,7 +265,7 @@ int main(int argc, char* argv[])
 
 	ProbsRecovery();
 
-	cities(ROC);
+	cities(SP);
 
 	for (t = 0; t <= DAYS; t++)
 	{
@@ -353,27 +364,31 @@ int main(int argc, char* argv[])
 
 			for (i = 1; i <= L; i++)
 				for (j = 1; j <= L; j++)
-					if (Person[i][j].Health == S)
-						Sfunc(i, j);
-					else if (Person[i][j].Health == E)
-						Efunc(i, j);
-					else if (Person[i][j].Health == IP)
-						IPfunc(i, j);
-					else if (Person[i][j].Health == IA || Person[i][j].Health == ISLight || Person[i][j].Health == ISModerate || Person[i][j].Health == ISSevere)
-						ISfunc(i, j);
-					else if (Person[i][j].Health == H)
-						Hfunc(i, j);
-					else if (Person[i][j].Health == ICU)
-						ICUfunc(i, j);
-					else if (Person[i][j].Health == Recovered)
-						Person[i][j].Swap = Recovered;
+					if (Person[i][j].Health == S) { PTIC; Sfunc(i, j); PTOC(pS); }
+					else if (Person[i][j].Health == E) { PTIC; Efunc(i, j); PTOC(pE); }
+					else if (Person[i][j].Health == IP) { PTIC; IPfunc(i, j); PTOC(pIP); }
+					else if (Person[i][j].Health == IA || Person[i][j].Health == ISLight || Person[i][j].Health == ISModerate || Person[i][j].Health == ISSevere) { PTIC; ISfunc(i, j); PTOC(pIS); }
+					else if (Person[i][j].Health == H) { PTIC; Hfunc(i, j); PTOC(pH); }
+					else if (Person[i][j].Health == ICU) { PTIC; ICUfunc(i, j); PTOC(pICU); }
+					else if (Person[i][j].Health == Recovered) { PTIC; Person[i][j].Swap = Recovered; PTOC(pRec); }
 
-			Updatefunc();   /* Update lattice */
+			PTIC; Updatefunc(); PTOC(pUpd);   /* Update lattice */
 
 		} // for time
 
 
 	} // for simulation
+
+#ifdef PROFILE
+	{
+		double tot = pBound+pS+pE+pIP+pIS+pH+pICU+pRec+pUpd;
+		printf("\n=== PROFILE SERIAL (tempo por funcao, s) ===\n");
+		printf("PROF\tS(Sfunc+Neighbors)\t%.3f\nPROF\tE\t%.3f\nPROF\tIP\t%.3f\nPROF\tIS\t%.3f\n", pS, pE, pIP, pIS);
+		printf("PROF\tH\t%.3f\nPROF\tICU\t%.3f\nPROF\tRecovered\t%.3f\nPROF\tUpdate\t%.3f\n", pH, pICU, pRec, pUpd);
+		printf("PROF\tTOTAL\t%.3f\n", tot);
+		fflush(stdout);
+	}
+#endif
 
 	//printf("MaximumIsolated=%i end of simulations\n",MaximumIsolated);
 
