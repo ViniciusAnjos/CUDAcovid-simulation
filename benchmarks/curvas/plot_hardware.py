@@ -81,4 +81,46 @@ ax.set_ylim(1, max(antes)*2.2); ax.legend()
 fig.tight_layout(); fig.savefig(os.path.join(OUT, "health_soa.png")); plt.close(fig)
 print("salvo: health_soa.png")
 
+# ====== #5: Escala com L (config fixa de Sao Paulo, MAXSIM=3) ======
+Ls   = [200, 400, 800, 1600, 3200]
+t_se = [2.88, 3.97, 32.19, 153.9, 607.12]   # serial s/sim
+t_gp = [2.769, 2.475, 2.573, 3.375, 11.514]  # gpu s/sim
+spd  = [s/g for s, g in zip(t_se, t_gp)]
+
+fig, (axA, axB) = plt.subplots(1, 2, figsize=(13.5, 5.2))
+axA.plot(Ls, t_se, "o-", color="#d62728", lw=2, ms=8, label="Serial (CPU)")
+axA.plot(Ls, t_gp, "s-", color="#1f77b4", lw=2, ms=8, label="GPU")
+axA.axhline(min(t_gp), color="#1f77b4", ls=":", lw=1)
+axA.text(210, min(t_gp)*1.15, "piso de overhead da GPU (~2,5 s/sim)", fontsize=8, color="#1f77b4")
+axA.set_xscale("log"); axA.set_yscale("log")
+axA.set_xlabel("L (lado do grid)"); axA.set_ylabel("Tempo por simulação (s)")
+axA.set_title("Tempo × L (configuração fixa)"); axA.legend()
+axB.plot(Ls, spd, "o-", color="#2ca02c", lw=2, ms=8)
+for l, sp in zip(Ls, spd):
+    axB.annotate(f"{sp:.0f}×", (l, sp), textcoords="offset points", xytext=(0, 9), ha="center", fontsize=9)
+axB.axhline(1.0, color="0.5", ls="--", lw=1)
+axB.set_xscale("log")
+axB.set_xlabel("L (lado do grid)"); axB.set_ylabel("Speedup (serial / GPU)")
+axB.set_title("Speedup × L"); axB.set_ylim(0, max(spd)*1.15)
+fig.suptitle("Escala com o tamanho do grid — RTX 4070 SUPER (config. São Paulo)", fontweight="bold")
+fig.tight_layout(rect=[0, 0, 1, 0.95])
+fig.savefig(os.path.join(OUT, "escala_L.png")); plt.close(fig)
+print("salvo: escala_L.png")
+
+# ====== #6: Block size (ocupancia), L=3200 fixo ======
+bs   = [64, 128, 256, 512, 1024]
+t_bs = [11.492, 11.501, 11.504, 11.534, 11.61]
+fig, ax = plt.subplots(figsize=(8.5, 5.5))
+ax.plot(bs, t_bs, "o-", color="#1f77b4", lw=2, ms=9)
+for b, t in zip(bs, t_bs):
+    ax.annotate(f"{t:.2f}s", (b, t), textcoords="offset points", xytext=(0, 10), ha="center", fontsize=9)
+ax.set_xscale("log", base=2); ax.set_xticks(bs); ax.set_xticklabels(bs)
+ax.set_xlabel("Threads por bloco"); ax.set_ylabel("Tempo por simulação (s)")
+ax.set_title("Efeito do tamanho do bloco (L=3200): praticamente nulo", fontweight="bold")
+ax.set_ylim(0, max(t_bs)*1.4)
+ax.text(64, max(t_bs)*1.2, "Kernels limitados por memória → ocupância não é o gargalo",
+        fontsize=9, color="0.3")
+fig.tight_layout(); fig.savefig(os.path.join(OUT, "blocksize.png")); plt.close(fig)
+print("salvo: blocksize.png")
+
 print("\nGraficos de hardware em:", OUT)
