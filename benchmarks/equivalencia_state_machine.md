@@ -166,9 +166,9 @@ Serial **corrigido** vs GPU, **mesmo β** (o β R0=3.5 da GPU), L real, 400 dias
 | Rocinha | 264 | 0,0049 | 58,7% | 58,8% | +0,1 p.p. | 50 |
 | Brasília | 1604 | 0,0995 | 76,8% | 76,3% | −0,4 p.p. | 50 |
 | Manaus | 1343 | 0,0995 | 75,9% | 75,4% | −0,5 p.p. | 50 |
-| São Paulo | 3355 | 0,0243 | 72,6% | 73,0% | +0,4 p.p. | 10¹ |
+| São Paulo | 3355 | 0,0243 | 72,6% | 72,8% | +0,2 p.p. | 50 |
 
-¹ SP serial em MAXSIM=10 (~2 h; MAXSIM=50 seria ~8 h). As demais em MAXSIM=50.
+Todas as 4 cidades em **MAXSIM=50** (SP rodada overnight, ~9,9 h).
 
 Todas as diferenças **dentro do ruído estatístico**. As curvas serial e GPU **se sobrepõem** (ver
 `graficos/validacao/<cidade>_validacao_mesmobeta.png`). Destaque Rocinha: antes (serial bugado, mesmo
@@ -178,3 +178,24 @@ Todas as diferenças **dentro do ruído estatístico**. As curvas serial e GPU *
 mesmas curvas, nas 4 cidades. Não há necessidade de β separado por implementação (a calibração
 separada anterior só compensava os dois bugs do serial). Curvas serial corrigidas em
 `benchmarks/curvas/validacao/<cidade>/serial/`.
+
+## ⏱️ Benchmark de tempo DEFINITIVO (mesmo β, epidemia idêntica, MAXSIM=50)
+
+Agora que serial e GPU rodam **a mesma epidemia** (mesmo β, validado), o speedup é uma comparação
+justa de cargas idênticas. Serial: CPU 1-thread com `-O3 -Xcompiler /O2`. GPU: RTX 4070 SUPER
+(otimização Health-SoA). Tempo = wall-clock.
+
+| Cidade | L | Células | Serial (s) | GPU (s) | **Speedup** | s/sim serial |
+|--------|------|---------|------------|---------|-------------|--------------|
+| Rocinha | 264 | 69 696 | 235 | 128,6 | **1,8×** | 4,7 |
+| Manaus | 1343 | 1,80 M | 1 891 | 135,7 | **13,9×** | 37,8 |
+| Brasília | 1604 | 2,57 M | 2 124 | 131,3 | **16,2×** | 42,5 |
+| **São Paulo** | 3355 | 11,25 M | **35 755** (9,9 h) | **633,5** | **56,4×** | **715** |
+
+> Tempos por simulação da SP (50 sims, s): variam de 638 a 834 (média 715) — registro completo em
+> `curvas/validacao/sp50_benchmark.txt`.
+
+**Leitura:** o speedup cresce com o tamanho do grid — de ~2× (Rocinha, 70k células, dominada por
+overhead de lançamento e GPU subutilizada) a **~56× (São Paulo, 11,25M células)**. A GPU rende
+quando há paralelismo suficiente para saturar os milhares de núcleos. (Estes números substituem o
+benchmark anterior, que comparava β diferentes por causa dos bugs do serial.)
