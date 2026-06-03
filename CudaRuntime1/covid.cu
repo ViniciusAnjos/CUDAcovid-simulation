@@ -150,7 +150,10 @@ int main(int argc, char* argv[]) {
     cudaMalloc(&d_HealthC_buf, gridSize * sizeof(unsigned char));
     cudaMemcpyToSymbol(d_HealthC, &d_HealthC_buf, sizeof(unsigned char*));
 
-    int blockSize = 256;
+#ifndef BLOCKSIZE
+#define BLOCKSIZE 256
+#endif
+    int blockSize = BLOCKSIZE;   // configuravel via -DBLOCKSIZE=N (benchmark de ocupancia)
     int numBlocks = (gridSize + blockSize - 1) / blockSize;
 
     // CORRECTED: Initialize sum arrays to zero
