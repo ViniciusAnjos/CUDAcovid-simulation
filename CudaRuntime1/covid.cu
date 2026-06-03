@@ -23,6 +23,17 @@
 #include "H_kernel.cuh"
 #include "ICU_kernel.cuh"
 
+#include <chrono>
+#ifdef PROFILE
+// Acumuladores de tempo de parede por kernel (s) - guardado por -DPROFILE
+double g_tBoundary=0,g_tS=0,g_tE=0,g_tIP=0,g_tIS=0,g_tH=0,g_tICU=0,g_tReset=0,g_tUpdate=0;
+#define TIC _t0 = std::chrono::high_resolution_clock::now()
+#define TOC(acc) do{ cudaDeviceSynchronize(); acc += std::chrono::duration<double>(std::chrono::high_resolution_clock::now()-_t0).count(); }while(0)
+#else
+#define TIC
+#define TOC(acc) cudaDeviceSynchronize()
+#endif
+
 // Arrays for storing simulation results across multiple simulations
 double S_Sum[DAYS + 2] = { 0 };
 double E_Sum[DAYS + 2] = { 0 };
@@ -76,37 +87,18 @@ double New_DeadCovid_Mean[DAYS + 2];
 // Function to run one simulation day
 void runSimulationDay(GPUPerson* d_population, unsigned int* d_rngStates,
     int L, int day, int blockSize, int numBlocks) {
-
-    // Update boundaries
-    updateBoundaries_kernel << <numBlocks, blockSize >> > (d_population, L);
-    cudaDeviceSynchronize();
-
-    // Run state kernels
-    S_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
-    cudaDeviceSynchronize();
-
-    E_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
-    cudaDeviceSynchronize();
-
-    IP_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
-    cudaDeviceSynchronize();
-
-    IS_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
-    cudaDeviceSynchronize();
-
-    H_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
-    cudaDeviceSynchronize();
-
-    ICU_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);
-    cudaDeviceSynchronize();
-
-    // Reset counters and run update kernel
-    resetCounters_kernel << <1, 1 >> > ();
-    resetNewCounters_kernel << <1, 1 >> > ();
-    cudaDeviceSynchronize();
-
-    update_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L, day, d_ProbNaturalDeath);
-    cudaDeviceSynchronize();
+#ifdef PROFILE
+    std::chrono::high_resolution_clock::time_point _t0;
+#endif
+    TIC; updateBoundaries_kernel << <numBlocks, blockSize >> > (d_population, L);                          TOC(g_tBoundary);
+    TIC; S_kernel   << <numBlocks, blockSize >> > (d_population, d_rngStates, L);                          TOC(g_tS);
+    TIC; E_kernel   << <numBlocks, blockSize >> > (d_population, d_rngStates, L);                          TOC(g_tE);
+    TIC; IP_kernel  << <numBlocks, blockSize >> > (d_population, d_rngStates, L);                          TOC(g_tIP);
+    TIC; IS_kernel  << <numBlocks, blockSize >> > (d_population, d_rngStates, L);                          TOC(g_tIS);
+    TIC; H_kernel   << <numBlocks, blockSize >> > (d_population, d_rngStates, L);                          TOC(g_tH);
+    TIC; ICU_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L);                          TOC(g_tICU);
+    TIC; resetCounters_kernel << <1, 1 >> > (); resetNewCounters_kernel << <1, 1 >> > ();                 TOC(g_tReset);
+    TIC; update_kernel << <numBlocks, blockSize >> > (d_population, d_rngStates, L, day, d_ProbNaturalDeath); TOC(g_tUpdate);
 }
 
 int main(int argc, char* argv[]) {
@@ -351,6 +343,17 @@ int main(int argc, char* argv[]) {
     printf("ICU: %.4f\n", ICU_Mean[DAYS_TO_RUN]);
     printf("Recovered: %.4f\n", Recovered_Mean[DAYS_TO_RUN]);
     printf("COVID Deaths: %.4f\n", DeadCovid_Mean[DAYS_TO_RUN]);
+
+#ifdef PROFILE
+    {
+        double tot = g_tBoundary+g_tS+g_tE+g_tIP+g_tIS+g_tH+g_tICU+g_tReset+g_tUpdate;
+        printf("\n=== PROFILE GPU (tempo de parede por kernel, s) ===\n");
+        printf("PROF\tboundary\t%.3f\nPROF\tS_kernel\t%.3f\nPROF\tE_kernel\t%.3f\nPROF\tIP_kernel\t%.3f\n", g_tBoundary, g_tS, g_tE, g_tIP);
+        printf("PROF\tIS_kernel\t%.3f\nPROF\tH_kernel\t%.3f\nPROF\tICU_kernel\t%.3f\nPROF\treset\t%.3f\nPROF\tupdate\t%.3f\n", g_tIS, g_tH, g_tICU, g_tReset, g_tUpdate);
+        printf("PROF\tTOTAL_kernels\t%.3f\n", tot);
+        fflush(stdout);
+    }
+#endif
 
     // Cleanup
     printf("\nCleaning up...\n");
