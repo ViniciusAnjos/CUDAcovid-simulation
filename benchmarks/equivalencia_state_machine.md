@@ -156,3 +156,25 @@ necessidade de calibrar β separado por implementação (aquilo compensava os bu
 
 Implicação: as curvas serial do benchmark anterior estavam com isolamento ligado → precisavam de β
 diferente. Com os fixes, revalidar as 4 cidades no **mesmo β** (serial = GPU).
+
+## ✅ Revalidação das 4 cidades no MESMO β (L real) — equivalência confirmada
+
+Serial **corrigido** vs GPU, **mesmo β** (o β R0=3.5 da GPU), L real, 400 dias:
+
+| Cidade | L | β (igual nos dois) | Ataque GPU | Ataque Serial | dif | MAXSIM |
+|--------|------|--------------------|------------|---------------|-----|--------|
+| Rocinha | 264 | 0,0049 | 58,7% | 58,8% | +0,1 p.p. | 50 |
+| Brasília | 1604 | 0,0995 | 76,8% | 76,3% | −0,4 p.p. | 50 |
+| Manaus | 1343 | 0,0995 | 75,9% | 75,4% | −0,5 p.p. | 50 |
+| São Paulo | 3355 | 0,0243 | 72,6% | 73,0% | +0,4 p.p. | 10¹ |
+
+¹ SP serial em MAXSIM=10 (~2 h; MAXSIM=50 seria ~8 h). As demais em MAXSIM=50.
+
+Todas as diferenças **dentro do ruído estatístico**. As curvas serial e GPU **se sobrepõem** (ver
+`graficos/validacao/<cidade>_validacao_mesmobeta.png`). Destaque Rocinha: antes (serial bugado, mesmo
+β) dava **1,7%** (extinta) vs GPU 58,7%; corrigida dá **58,8%** ≈ GPU.
+
+**Conclusão da monografia:** a implementação GPU **reproduz fielmente** o modelo serial — mesmo β,
+mesmas curvas, nas 4 cidades. Não há necessidade de β separado por implementação (a calibração
+separada anterior só compensava os dois bugs do serial). Curvas serial corrigidas em
+`benchmarks/curvas/validacao/<cidade>/serial/`.
