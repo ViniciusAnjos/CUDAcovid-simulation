@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# Graficos individuais por cidade para o capitulo de RESULTADOS / apresentacao final.
-# Curvas limpas (prevalencia, incidencia, mortes). Sem rotulos internos.
+# Graficos de RESULTADOS para apresentacao final.
+# 4 figuras (uma por tipo), cada uma 2x2 com as 4 cidades. Termo "UTI" (nunca ICU).
 import os
 import numpy as np
 import matplotlib
@@ -11,8 +11,8 @@ plt.rcParams.update({
     "font.family": "serif",
     "font.serif": ["DejaVu Serif", "Times New Roman", "Liberation Serif"],
     "mathtext.fontset": "dejavuserif",
-    "font.size": 12, "axes.titlesize": 13, "axes.labelsize": 12,
-    "legend.fontsize": 10, "xtick.labelsize": 10, "ytick.labelsize": 10,
+    "font.size": 11, "axes.titlesize": 12, "axes.labelsize": 11,
+    "legend.fontsize": 8.5, "xtick.labelsize": 9, "ytick.labelsize": 9,
     "figure.titlesize": 15, "axes.grid": True, "grid.linestyle": ":", "grid.alpha": 0.5,
     "axes.spines.top": False, "axes.spines.right": False, "axes.axisbelow": True,
     "legend.frameon": True, "legend.framealpha": 0.9, "legend.edgecolor": "0.8",
@@ -20,82 +20,71 @@ plt.rcParams.update({
 })
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(BASE, "validacao")          # dados (mesmo beta GPU)
+SRC = os.path.join(BASE, "validacao")
 OUT = os.path.join(BASE, "graficos", "resultados")
 os.makedirs(OUT, exist_ok=True)
+# remove os PNGs individuais antigos
+for f in os.listdir(OUT):
+    if f.endswith(".png"):
+        os.remove(os.path.join(OUT, f))
 
-CIDADES = {
-    "ROC": ("Rocinha",   "L=264,  β=0,0049"),
-    "BRA": ("Brasília",  "L=1604, β=0,0995"),
-    "MAN": ("Manaus",    "L=1343, β=0,0995"),
-    "SP":  ("São Paulo", "L=3355, β=0,0243"),
-}
-COR = {"ROC": "#1f77b4", "BRA": "#2ca02c", "MAN": "#ff7f0e", "SP": "#d62728"}
+# ordem dos paineis (por tamanho do grid)
+CIDADES = [("ROC", "Rocinha (L=264)"),
+           ("MAN", "Manaus (L=1343)"),
+           ("BRA", "Brasília (L=1604)"),
+           ("SP",  "São Paulo (L=3355)")]
+COR = {"ROC": "#1f77b4", "MAN": "#ff7f0e", "BRA": "#2ca02c", "SP": "#d62728"}
 
 def load(s, arq, header=True):
     d = np.loadtxt(os.path.join(SRC, s, "serial", arq), skiprows=1 if header else 0)
     return d[1:]
 
-def lp(s): return load(s, "epidemicsprevalence.dat")
-def li(s): return load(s, "epidemicsincidence.dat")
-def lf(s): return load(s, "Infectiousprevalence.dat", header=False)
+def painel(titulo_fig, fname, plot_fn):
+    fig, axes = plt.subplots(2, 2, figsize=(13, 9))
+    for ax, (s, nome) in zip(axes.flat, CIDADES):
+        plot_fn(ax, s)
+        ax.set_title(nome, fontweight="bold"); ax.set_xlim(0, 400)
+    fig.suptitle(titulo_fig, fontweight="bold")
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    fig.savefig(os.path.join(OUT, fname)); plt.close(fig)
+    print("salvo:", fname)
 
-def fin(fig, fp):
-    fig.tight_layout(); fig.savefig(fp); plt.close(fig); print("salvo:", os.path.basename(fp))
-
-for s, (nome, params) in CIDADES.items():
-    # 1. Prevalencia (2 paineis)
-    d = lp(s); day = d[:, 0]
-    fig, (a1, a2) = plt.subplots(1, 2, figsize=(13, 5))
-    a1.plot(day, d[:, 1], label="Suscetíveis (S)", color="#1f77b4", lw=1.9)
-    a1.plot(day, d[:, 2], label="Expostos (E)", color="#9467bd", lw=1.9)
-    a1.plot(day, d[:, 5], label="Infecciosos", color="#d62728", lw=1.9)
-    a1.plot(day, d[:, 8], label="Recuperados (R)", color="#2ca02c", lw=1.9)
-    a1.plot(day, d[:, 9], label="Mortes por COVID", color="#000000", lw=1.9)
-    a1.set_xlabel("Tempo (dias)"); a1.set_ylabel("Proporção da população")
-    a1.set_title("Compartimentos"); a1.set_xlim(0, 400); a1.set_ylim(0, 1); a1.legend()
-    a2.plot(day, d[:, 5], label="Infecciosos", color="#d62728", lw=1.9)
-    a2.plot(day, d[:, 6], label="Hospital (H)", color="#ff7f0e", lw=1.9)
-    a2.plot(day, d[:, 7], label="UTI (ICU)", color="#8c564b", lw=1.9)
-    a2.set_xlabel("Tempo (dias)"); a2.set_ylabel("Proporção da população")
-    a2.set_title("Carga clínica"); a2.set_xlim(0, 400); a2.legend()
-    fig.suptitle(f"{nome} — Prevalência ({params})", fontweight="bold")
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
-    fig.savefig(os.path.join(OUT, f"{s}_prevalencia.png")); plt.close(fig)
-    print("salvo:", f"{s}_prevalencia.png")
-
-    # 2. Incidencia
-    d = li(s); day = d[:, 0]
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.plot(day, d[:, 2], color=COR[s], lw=1.9, label="Novas infecções por dia")
-    ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Novos casos por dia (proporção)")
-    ax.set_title(f"{nome} — Incidência diária ({params})", fontweight="bold")
-    ax.set_xlim(0, 400); ax.legend()
-    fin(fig, os.path.join(OUT, f"{s}_incidencia.png"))
-
-    # 3. Infecciosos sintomaticos
-    d = lf(s); day = d[:, 0]
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.plot(day, d[:, 1], label="Leve (ISLight)", color="#17becf", lw=1.9)
-    ax.plot(day, d[:, 2], label="Moderado (ISModerate)", color="#ff7f0e", lw=1.9)
-    ax.plot(day, d[:, 3], label="Grave (ISSevere)", color="#d62728", lw=1.9)
+# 1. Prevalencia (compartimentos)
+def f_prev(ax, s):
+    d = load(s, "epidemicsprevalence.dat"); day = d[:, 0]
+    ax.plot(day, d[:, 1], label="Suscetíveis (S)", color="#1f77b4", lw=1.7)
+    ax.plot(day, d[:, 2], label="Expostos (E)", color="#9467bd", lw=1.7)
+    ax.plot(day, d[:, 5], label="Infecciosos", color="#d62728", lw=1.7)
+    ax.plot(day, d[:, 8], label="Recuperados (R)", color="#2ca02c", lw=1.7)
+    ax.plot(day, d[:, 9], label="Mortes por COVID", color="#000000", lw=1.7)
     ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Proporção da população")
-    ax.set_title(f"{nome} — Infecciosos sintomáticos ({params})", fontweight="bold")
-    ax.set_xlim(0, 400); ax.legend()
-    fin(fig, os.path.join(OUT, f"{s}_infecciosos_sintomaticos.png"))
+    ax.set_ylim(0, 1); ax.legend(fontsize=8)
+painel("Prevalência por cidade", "prevalencia.png", f_prev)
 
-    # 4. Mortes (acumuladas + diarias)
-    dp = lp(s); di = li(s); day = dp[:, 0]
-    fig, (a1, a2) = plt.subplots(1, 2, figsize=(13, 5))
-    a1.plot(day, dp[:, 9], color="#000000", lw=2.0); a1.fill_between(day, dp[:, 9], color="#000000", alpha=0.08)
-    a1.set_xlabel("Tempo (dias)"); a1.set_ylabel("Mortes por COVID (proporção acumulada)")
-    a1.set_title("Mortalidade acumulada"); a1.set_xlim(0, 400)
-    a2.plot(day, di[:, 9], color="#d62728", lw=1.7)
-    a2.set_xlabel("Tempo (dias)"); a2.set_ylabel("Novas mortes por dia (proporção)")
-    a2.set_title("Mortalidade diária"); a2.set_xlim(0, 400)
-    fig.suptitle(f"{nome} — Mortes por COVID ao longo do tempo ({params})", fontweight="bold")
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
-    fig.savefig(os.path.join(OUT, f"{s}_mortes.png")); plt.close(fig)
-    print("salvo:", f"{s}_mortes.png")
+# 2. Incidencia (novas infeccoes/dia)
+def f_inc(ax, s):
+    d = load(s, "epidemicsincidence.dat"); day = d[:, 0]
+    ax.plot(day, d[:, 2], color=COR[s], lw=1.7, label="Novas infecções/dia")
+    ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Novos casos/dia (proporção)")
+    ax.legend()
+painel("Incidência diária por cidade", "incidencia.png", f_inc)
 
-print("\nGraficos de resultados em:", OUT)
+# 3. Carga clinica (Infecciosos / Hospital / UTI)
+def f_clin(ax, s):
+    d = load(s, "epidemicsprevalence.dat"); day = d[:, 0]
+    ax.plot(day, d[:, 5], label="Infecciosos", color="#d62728", lw=1.7)
+    ax.plot(day, d[:, 6], label="Hospital (H)", color="#ff7f0e", lw=1.7)
+    ax.plot(day, d[:, 7], label="UTI", color="#8c564b", lw=1.7)
+    ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Proporção da população")
+    ax.legend()
+painel("Carga clínica por cidade (Infecciosos / Hospital / UTI)", "carga_clinica.png", f_clin)
+
+# 4. Mortes ao longo do tempo (acumulada)
+def f_mortes(ax, s):
+    d = load(s, "epidemicsprevalence.dat"); day = d[:, 0]
+    ax.plot(day, d[:, 9], color="#000000", lw=1.9)
+    ax.fill_between(day, d[:, 9], color="#000000", alpha=0.08)
+    ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Mortes por COVID (proporção acumulada)")
+painel("Mortalidade acumulada por cidade", "mortes.png", f_mortes)
+
+print("\n4 figuras (2x2 cidades) em:", OUT)
