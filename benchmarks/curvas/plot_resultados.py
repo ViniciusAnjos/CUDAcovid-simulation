@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-# Graficos de RESULTADOS para apresentacao final.
-# 4 figuras (uma por tipo), cada uma 2x2 com as 4 cidades. Termo "UTI" (nunca ICU).
+# Graficos de RESULTADOS para apresentacao final. Cada figura = 2x2 (4 cidades).
+# Set A (serial/):     4 figuras com a curva (serial).
+# Set B (comparacao/): 4 figuras com os dois tracos -> GPU (solido) e Serial (tracejado).
+# Termo "UTI" (nunca ICU). Titulos limpos.
 import os
 import numpy as np
 import matplotlib
@@ -20,71 +22,91 @@ plt.rcParams.update({
 })
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(BASE, "validacao")
-OUT = os.path.join(BASE, "graficos", "resultados")
-os.makedirs(OUT, exist_ok=True)
-# remove os PNGs individuais antigos
-for f in os.listdir(OUT):
-    if f.endswith(".png"):
-        os.remove(os.path.join(OUT, f))
+OUT  = os.path.join(BASE, "graficos", "resultados")
+OUT_S = os.path.join(OUT, "serial")
+OUT_C = os.path.join(OUT, "comparacao")
+for d in (OUT, OUT_S, OUT_C):
+    os.makedirs(d, exist_ok=True)
+for d in (OUT, OUT_S, OUT_C):       # limpa PNGs antigos
+    for f in os.listdir(d):
+        if f.endswith(".png"):
+            os.remove(os.path.join(d, f))
 
-# ordem dos paineis (por tamanho do grid)
-CIDADES = [("ROC", "Rocinha (L=264)"),
-           ("MAN", "Manaus (L=1343)"),
-           ("BRA", "Brasília (L=1604)"),
-           ("SP",  "São Paulo (L=3355)")]
+CIDADES = [("ROC", "Rocinha (L=264)"), ("MAN", "Manaus (L=1343)"),
+           ("BRA", "Brasília (L=1604)"), ("SP", "São Paulo (L=3355)")]
 COR = {"ROC": "#1f77b4", "MAN": "#ff7f0e", "BRA": "#2ca02c", "SP": "#d62728"}
+COMP = [(1, "S", "#1f77b4"), (5, "Infecciosos", "#d62728"),
+        (8, "R", "#2ca02c"), (9, "Mortes", "#000000")]
 
-def load(s, arq, header=True):
-    d = np.loadtxt(os.path.join(SRC, s, "serial", arq), skiprows=1 if header else 0)
-    return d[1:]
+def lser(s, arq, header=True):  # serial (mesmo beta GPU)
+    return np.loadtxt(os.path.join(BASE, "validacao", s, "serial", arq), skiprows=1 if header else 0)[1:]
+def lgpu(s, arq, header=True):  # gpu
+    return np.loadtxt(os.path.join(BASE, s, arq), skiprows=1 if header else 0)[1:]
 
-def painel(titulo_fig, fname, plot_fn):
+def painel(titulo, outdir, fname, plot_fn):
     fig, axes = plt.subplots(2, 2, figsize=(13, 9))
     for ax, (s, nome) in zip(axes.flat, CIDADES):
-        plot_fn(ax, s)
-        ax.set_title(nome, fontweight="bold"); ax.set_xlim(0, 400)
-    fig.suptitle(titulo_fig, fontweight="bold")
+        plot_fn(ax, s); ax.set_title(nome, fontweight="bold"); ax.set_xlim(0, 400)
+    fig.suptitle(titulo, fontweight="bold")
     fig.tight_layout(rect=[0, 0, 1, 0.97])
-    fig.savefig(os.path.join(OUT, fname)); plt.close(fig)
-    print("salvo:", fname)
+    fig.savefig(os.path.join(outdir, fname)); plt.close(fig)
+    print("salvo:", os.path.relpath(os.path.join(outdir, fname), OUT))
 
-# 1. Prevalencia (compartimentos)
-def f_prev(ax, s):
-    d = load(s, "epidemicsprevalence.dat"); day = d[:, 0]
-    ax.plot(day, d[:, 1], label="Suscetíveis (S)", color="#1f77b4", lw=1.7)
-    ax.plot(day, d[:, 2], label="Expostos (E)", color="#9467bd", lw=1.7)
-    ax.plot(day, d[:, 5], label="Infecciosos", color="#d62728", lw=1.7)
-    ax.plot(day, d[:, 8], label="Recuperados (R)", color="#2ca02c", lw=1.7)
-    ax.plot(day, d[:, 9], label="Mortes por COVID", color="#000000", lw=1.7)
-    ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Proporção da população")
-    ax.set_ylim(0, 1); ax.legend(fontsize=8)
-painel("Prevalência por cidade", "prevalencia.png", f_prev)
-
-# 2. Incidencia (novas infeccoes/dia)
-def f_inc(ax, s):
-    d = load(s, "epidemicsincidence.dat"); day = d[:, 0]
-    ax.plot(day, d[:, 2], color=COR[s], lw=1.7, label="Novas infecções/dia")
-    ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Novos casos/dia (proporção)")
-    ax.legend()
-painel("Incidência diária por cidade", "incidencia.png", f_inc)
-
-# 3. Carga clinica (Infecciosos / Hospital / UTI)
-def f_clin(ax, s):
-    d = load(s, "epidemicsprevalence.dat"); day = d[:, 0]
-    ax.plot(day, d[:, 5], label="Infecciosos", color="#d62728", lw=1.7)
-    ax.plot(day, d[:, 6], label="Hospital (H)", color="#ff7f0e", lw=1.7)
-    ax.plot(day, d[:, 7], label="UTI", color="#8c564b", lw=1.7)
-    ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Proporção da população")
-    ax.legend()
-painel("Carga clínica por cidade (Infecciosos / Hospital / UTI)", "carga_clinica.png", f_clin)
-
-# 4. Mortes ao longo do tempo (acumulada)
-def f_mortes(ax, s):
-    d = load(s, "epidemicsprevalence.dat"); day = d[:, 0]
-    ax.plot(day, d[:, 9], color="#000000", lw=1.9)
-    ax.fill_between(day, d[:, 9], color="#000000", alpha=0.08)
+# ---------------- SET A: SERIAL ----------------
+def prev(ax, s):
+    d = lser(s, "epidemicsprevalence.dat"); day = d[:, 0]
+    ax.plot(day, d[:,1], label="Suscetíveis (S)", color="#1f77b4", lw=1.7)
+    ax.plot(day, d[:,2], label="Expostos (E)", color="#9467bd", lw=1.7)
+    ax.plot(day, d[:,5], label="Infecciosos", color="#d62728", lw=1.7)
+    ax.plot(day, d[:,8], label="Recuperados (R)", color="#2ca02c", lw=1.7)
+    ax.plot(day, d[:,9], label="Mortes por COVID", color="#000000", lw=1.7)
+    ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Proporção da população"); ax.set_ylim(0,1); ax.legend(fontsize=8)
+def inc(ax, s):
+    d = lser(s, "epidemicsincidence.dat"); day = d[:, 0]
+    ax.plot(day, d[:,2], color=COR[s], lw=1.7, label="Novas infecções/dia")
+    ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Novos casos/dia (proporção)"); ax.legend()
+def clin(ax, s):
+    d = lser(s, "epidemicsprevalence.dat"); day = d[:, 0]
+    ax.plot(day, d[:,5], label="Infecciosos", color="#d62728", lw=1.7)
+    ax.plot(day, d[:,6], label="Hospital (H)", color="#ff7f0e", lw=1.7)
+    ax.plot(day, d[:,7], label="UTI", color="#8c564b", lw=1.7)
+    ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Proporção da população"); ax.legend()
+def mortes(ax, s):
+    d = lser(s, "epidemicsprevalence.dat"); day = d[:, 0]
+    ax.plot(day, d[:,9], color="#000000", lw=1.9); ax.fill_between(day, d[:,9], color="#000000", alpha=0.08)
     ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Mortes por COVID (proporção acumulada)")
-painel("Mortalidade acumulada por cidade", "mortes.png", f_mortes)
 
-print("\n4 figuras (2x2 cidades) em:", OUT)
+painel("Prevalência por cidade", OUT_S, "prevalencia.png", prev)
+painel("Incidência diária por cidade", OUT_S, "incidencia.png", inc)
+painel("Carga clínica por cidade (Infecciosos / Hospital / UTI)", OUT_S, "carga_clinica.png", clin)
+painel("Mortalidade acumulada por cidade", OUT_S, "mortes.png", mortes)
+
+# ---------------- SET B: COMPARACAO (GPU solido + Serial tracejado) ----------------
+LT = "Sólido: GPU · Tracej.: Serial"
+def c_prev(ax, s):
+    g = lgpu(s,"epidemicsprevalence.dat"); se = lser(s,"epidemicsprevalence.dat"); n=min(len(g),len(se)); g,se=g[:n],se[:n]; day=g[:,0]
+    for col,lab,cor in COMP:
+        ax.plot(day, g[:,col], color=cor, lw=1.9, label=lab); ax.plot(day, se[:,col], color=cor, lw=1.4, ls="--")
+    ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Proporção da população"); ax.set_ylim(0,1)
+    ax.legend(fontsize=8, title=LT, title_fontsize=8)
+def c_inc(ax, s):
+    g = lgpu(s,"epidemicsincidence.dat"); se = lser(s,"epidemicsincidence.dat"); n=min(len(g),len(se)); g,se=g[:n],se[:n]; day=g[:,0]
+    ax.plot(day, g[:,2], color=COR[s], lw=1.9, label="GPU"); ax.plot(day, se[:,2], color=COR[s], lw=1.4, ls="--", label="Serial")
+    ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Novos casos/dia (proporção)"); ax.legend()
+def c_clin(ax, s):
+    g = lgpu(s,"epidemicsprevalence.dat"); se = lser(s,"epidemicsprevalence.dat"); n=min(len(g),len(se)); g,se=g[:n],se[:n]; day=g[:,0]
+    for col,lab,cor in [(5,"Infecciosos","#d62728"),(6,"Hospital (H)","#ff7f0e"),(7,"UTI","#8c564b")]:
+        ax.plot(day, g[:,col], color=cor, lw=1.9, label=lab); ax.plot(day, se[:,col], color=cor, lw=1.4, ls="--")
+    ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Proporção da população")
+    ax.legend(fontsize=8, title=LT, title_fontsize=8)
+def c_mortes(ax, s):
+    g = lgpu(s,"epidemicsprevalence.dat"); se = lser(s,"epidemicsprevalence.dat"); n=min(len(g),len(se)); g,se=g[:n],se[:n]; day=g[:,0]
+    ax.plot(day, g[:,9], color="#000000", lw=1.9, label="GPU"); ax.plot(day, se[:,9], color="#000000", lw=1.4, ls="--", label="Serial")
+    ax.set_xlabel("Tempo (dias)"); ax.set_ylabel("Mortes por COVID (proporção acumulada)"); ax.legend()
+
+painel("Prevalência — Serial × GPU por cidade", OUT_C, "prevalencia.png", c_prev)
+painel("Incidência diária — Serial × GPU por cidade", OUT_C, "incidencia.png", c_inc)
+painel("Carga clínica — Serial × GPU por cidade (Infecciosos / Hospital / UTI)", OUT_C, "carga_clinica.png", c_clin)
+painel("Mortalidade acumulada — Serial × GPU por cidade", OUT_C, "mortes.png", c_mortes)
+
+print("\nSet A (serial) em:", OUT_S, "| Set B (comparacao) em:", OUT_C)
