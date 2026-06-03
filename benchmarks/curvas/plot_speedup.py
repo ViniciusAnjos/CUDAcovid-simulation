@@ -78,4 +78,37 @@ ax.set_ylim(0, max(speedup)*1.18)
 fig.tight_layout(); fig.savefig(os.path.join(OUT, "speedup_vs_tamanho.png")); plt.close(fig)
 print("salvo: speedup_vs_tamanho.png")
 
-print("\nGraficos de speedup em:", OUT)
+# 4. Eficiencia = vazao (atualizacoes de celula por segundo). work = L^2 * 400 dias * 50 sims
+DIAS, MAXSIM = 400, 50
+work = [c * DIAS * MAXSIM for c in celulas]
+vz_ser = [w/t/1e6 for w, t in zip(work, t_ser)]   # M atualizacoes/s
+vz_gpu = [w/t/1e6 for w, t in zip(work, t_gpu)]
+
+fig, ax = plt.subplots(figsize=(9, 5.5))
+w = 0.38
+b1 = ax.bar(x-w/2, vz_ser, w, label="Serial (CPU, 1 thread)", color="#d62728", edgecolor="0.3")
+b2 = ax.bar(x+w/2, vz_gpu, w, label="GPU (RTX 4070 SUPER)", color="#1f77b4", edgecolor="0.3")
+for b in list(b1)+list(b2):
+    ax.text(b.get_x()+b.get_width()/2, b.get_height()+6, f"{b.get_height():.0f}", ha="center", fontsize=8.5)
+ax.set_xticks(x); ax.set_xticklabels(rotulos)
+ax.set_ylabel("Vazão (milhões de atualizações de célula / s)")
+ax.set_title("Eficiência computacional (vazão): Serial × GPU", fontweight="bold")
+ax.set_ylim(0, max(vz_gpu)*1.15); ax.legend()
+fig.tight_layout(); fig.savefig(os.path.join(OUT, "eficiencia_vazao.png")); plt.close(fig)
+print("salvo: eficiencia_vazao.png")
+
+# 5. Vazao da GPU vs tamanho (saturacao)
+fig, ax = plt.subplots(figsize=(9, 5.5))
+ax.plot(celulas, vz_gpu, "o-", color="#1f77b4", lw=2, ms=9, label="GPU")
+ax.plot(celulas, vz_ser, "s--", color="#d62728", lw=1.8, ms=7, label="Serial")
+for c, v, n in zip(celulas, vz_gpu, nomes):
+    ax.annotate(f"{n}", (c, v), textcoords="offset points", xytext=(0, 10), ha="center", fontsize=8.5)
+ax.set_xscale("log")
+ax.set_xlabel("Número de células do grid (L², escala log)")
+ax.set_ylabel("Vazão (milhões de atualizações de célula / s)")
+ax.set_title("Vazão da GPU satura com o tamanho do grid", fontweight="bold")
+ax.legend()
+fig.tight_layout(); fig.savefig(os.path.join(OUT, "eficiencia_vs_tamanho.png")); plt.close(fig)
+print("salvo: eficiencia_vs_tamanho.png")
+
+print("\nGraficos de speedup/eficiencia em:", OUT)
