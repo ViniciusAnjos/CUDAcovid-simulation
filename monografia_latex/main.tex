@@ -58,6 +58,9 @@
 \usepackage{graphicx}			% Inclusão de gráficos
 \usepackage{times}
 \usepackage{amsmath}
+\usepackage{tikz}
+\usetikzlibrary{positioning,calc,arrows.meta}
+\usepackage{float}
 \usepackage{longtable}
 \usepackage{url}
 
@@ -275,7 +278,7 @@ Como o número básico de reprodução depende da taxa de transmissão $\beta$, 
 \label{BD}
 Modelos epidemiológicos abrangem diversos tipos de modelos compartimentais, que incluem uma variedade de características, que simulam o comportamento de doenças infecciosas ao longo de um tempo em uma população. O modelo compartimental utilizado será o SEIR, no qual a população é dividida em quatro compartimentos: Suscetíveis (S), representados por aqueles que ainda não adquiriram a doença e podem adquiri-la; Expostos (E), representados por aqueles que já adquiriram a doença, mas estão passando por um estado de latência e não infectam outros indivíduos; Infecciosos (I), aqueles que possuem a doença e infectam outros indivíduos; e Removidos (R), aqueles que, ou se recuperaram da doença, ou faleceram. 
 
-\begin{figure}[h!]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.9\textwidth]{Flowchart.jpg}
     \caption{Fluxograma do funcionamento geral do programa de simulação. }
@@ -291,6 +294,31 @@ Em ABM, as unidades que interagem entre si, os agentes, apresentam diversas cara
 
     \item Contatos aleatórios.
 \end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.75, font=\small]
+  % Von Neumann
+  \begin{scope}
+    \fill[gray!35] (1,2) rectangle ++(1,1);
+    \fill[gray!35] (0,1) rectangle ++(1,1);
+    \fill[gray!35] (2,1) rectangle ++(1,1);
+    \fill[gray!35] (1,0) rectangle ++(1,1);
+    \fill[black!65] (1,1) rectangle ++(1,1);
+    \foreach \x in {0,1,2} \foreach \y in {0,1,2} { \draw (\x,\y) rectangle ++(1,1); }
+    \node at (1.5,-0.7) {Von Neumann (4 vizinhos)};
+  \end{scope}
+  % Moore
+  \begin{scope}[xshift=5.5cm]
+    \foreach \x in {0,1,2} \foreach \y in {0,1,2} { \fill[gray!35] (\x,\y) rectangle ++(1,1); }
+    \fill[black!65] (1,1) rectangle ++(1,1);
+    \foreach \x in {0,1,2} \foreach \y in {0,1,2} { \draw (\x,\y) rectangle ++(1,1); }
+    \node at (1.5,-0.7) {Moore (8 vizinhos)};
+  \end{scope}
+\end{tikzpicture}
+\caption{Vizinhanças em uma rede quadrada. A célula em destaque representa o agente central e as células sombreadas representam os vizinhos considerados no contato: à esquerda, a vizinhança de Von Neumann, com os 4 vizinhos ortogonais; à direita, a vizinhança de Moore, com os 8 vizinhos adjacentes.}
+\label{fig:vizinhancas}
+\end{figure}
 
 Logo, a probabilidade de contágio dependerá da vizinhança e do número de contatos aleatórios, e pode ser representada a partir da seguinte equação.
 
@@ -315,11 +343,13 @@ O método de Monte Carlo depende da geração de números aleatórios, entretant
 
 \section{Arquitetura de GPUs}
 
+\subsection{Organização dos processadores}
+
 Enquanto CPUs são orientadas para realizar operações mais complexas, mas com baixa latência, GPUs são orientadas para maior \textit{throughput}, realizam operações mais simples, mas processam bastantes tarefas ao mesmo tempo. Essas características tornam CPUs excelentes para tarefas em serial, enquanto GPUs são ótimas para tarefas paralelizáveis. Essa diferença ocorre devido a suas arquiteturas, CPUs têm poucos \textit{cores} que precisam de memória cache para diminuir a latência, enquanto GPUs não se preocupam tanto com latência, então possuem menos transístores para memória cache em benefício de mais transístores que realizarão processamento de tarefas, dependendo da família da GPU, centenas e até milhares de \textit{cores} estão presentes.  
 
 
 
-\begin{figure}[h!]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.9\textwidth]{gpu-devotes-more-transistors-to-data-processing.png}
     \caption{Arquitetura de uma CPU e de uma GPU. }
@@ -328,9 +358,24 @@ Enquanto CPUs são orientadas para realizar operações mais complexas, mas com 
 
 GPUs contêm SMs (\textit{streaming multiprocessors}), que contêm CUDA \textit{cores} que realizarão as tarefas, cache L1, memória compartilhada entre os processadores dentro do SM e cache L2. Para obter maior \textit{throughput}, os \textit{cores} nos SMs são SIMT (\textit{single instruction multiple thread}), para cada tarefa necessária, um grupo de 32 \textit{cores} realizará a mesma tarefa, esses grupos são chamados de \textit{warps}, e o processamento das tarefas será sempre realizado pela execução dos \textit{warps}.
 
-\section{Hierarquia de memória da GPU}
+\subsection{Hierarquia de memória da GPU}
 
 Além da grande quantidade de \textit{cores}, o desempenho de um programa executado em GPU depende fortemente da forma como os dados são acessados na memória, organizada em uma hierarquia de níveis com diferentes capacidades e latências. No nível mais próximo dos \textit{cores} estão os registradores, privados de cada thread e de acesso mais rápido; em seguida está a memória compartilhada, acessível por todas as threads de um mesmo bloco e localizada dentro do SM, de baixa latência; e, no nível mais distante, está a memória global, de maior capacidade, porém de maior latência, na qual residem os dados copiados do \textit{host} para o \textit{device}. Entre a memória global e os SMs encontram-se ainda as memórias cache L1, privada de cada SM, e L2, compartilhada entre todos os SMs, que armazenam os dados acessados recentemente com o intuito de reduzir o número de acessos à memória global.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\small, >=Stealth, every node/.style={align=center}]
+  \node[draw, thick, fill=blue!10, minimum height=0.8cm, text width=3.4cm] (reg) {Registradores\\[-2pt] {\scriptsize privados por thread}};
+  \node[draw, thick, fill=blue!15, minimum height=0.8cm, text width=5.4cm, below=2mm of reg] (sh) {Memória compartilhada / Cache L1\\[-2pt] {\scriptsize por SM}};
+  \node[draw, thick, fill=blue!20, minimum height=0.8cm, text width=7.4cm, below=2mm of sh] (l2) {Cache L2\\[-2pt] {\scriptsize compartilhada entre os SMs}};
+  \node[draw, thick, fill=blue!28, minimum height=1.0cm, text width=9.4cm, below=2mm of l2] (gl) {Memória global (DRAM)\\[-2pt] {\scriptsize maior capacidade, copiada do \textit{host}}};
+  \node[font=\scriptsize, above=1mm of reg] {menor latência $\cdot$ menor capacidade};
+  \node[font=\scriptsize, below=1mm of gl] {maior latência $\cdot$ maior capacidade};
+  \draw[->, very thick] ($(gl.west)+(-0.6,0)$ |- reg.north) -- ($(gl.west)+(-0.6,0)$ |- gl.south);
+\end{tikzpicture}
+\caption{Hierarquia de memória de uma GPU. Do topo para a base, a capacidade e a latência de acesso aumentam, enquanto a proximidade em relação aos \textit{cores} diminui.}
+\label{fig:memoria}
+\end{figure}
 
 O acesso à memória global é mais eficiente quando é coalescido, ou seja, quando threads de uma mesma warp acessam posições contíguas de memória, que podem então ser atendidas em uma única transação. Em diversas aplicações o desempenho não é limitado pela capacidade de processamento, mas pela largura de banda da memória, situação na qual o programa é dito limitado por memória (\textit{memory-bound}), e logo a forma como os dados são estruturados e acessados torna-se determinante para o desempenho. Em particular, estruturas de dados compactas, que reduzem o volume de dados transferidos e permitem que o conjunto de dados em uso seja mantido na memória cache L2, podem proporcionar ganhos expressivos de desempenho.
 
@@ -342,9 +387,9 @@ blockDim} e \textbf{gridDim}. Manipulando essas variáveis, o programador conseg
 
 Ao desenvolver programas utilizando a arquitetura CUDA, está-se envolvido em uma computação heterogênea, uma vez que o programa faz uso da interação entre a unidade central de processamento (CPU), também conhecida como \textit{host}, e a unidade de processamento gráfico (GPU), denominada \textit{device}. No host, o código é responsável por realizar as tarefas que precisam ser feitas em serial, alocações de memória, copiar os dados da memória da CPU para a GPU e então chamar os kernels para realizar as tarefas no device. Na GPU, cada SM realizará as tarefas por bloco e, após a finalização das execuções, o \textit{host} copia os resultados obtidos da memória da GPU para a CPU. A Figura \ref{cuda} representa como funciona um programa feito em CUDA.
 
-\begin{figure}[h!]
+\begin{figure}[H]
     \centering
-    \includegraphics[width=10cm, height = 12cm]{heterogeneous-programming.png}
+    \includegraphics[width=0.5\textwidth]{heterogeneous-programming.png}
     \caption{Execução de um programa feito em CUDA. }
     \label{cuda}
 \end{figure}
@@ -389,7 +434,7 @@ no qual $f$ é a fração do programa que permanece serial, tal que, à medida q
 
 A modelagem baseada em agentes utilizada será uma modificação do modelo compartimental SEIR, os indivíduos podem ter os seguintes estados de saúde, suscetíveis (X), expostos (E), pré-sintomáticos (P), assintomáticos (A), sintomático leve ($S_l$), sintomático moderado ($S_m$), sintomático severo ($S_s$), hospitalizado (H), internados na UTI (UTI), recuperados (R) e mortos (M). A Figura \ref{fig:estados_saude} abaixo demonstra como ocorre os possíveis movimentos dentre os estados de saúde.
 
-\begin{figure}[h!]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.9\textwidth]{covid fluxograma.jpg}
     \caption{Fluxograma do movimento entre estados de saúde. }
