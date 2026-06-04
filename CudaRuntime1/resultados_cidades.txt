@@ -1,0 +1,5 @@
+﻿RESULTADOS GPU por cidade (MAXSIM=50, L real, Beta calibrado GPU) 2026-06-01T21:01:22.9726418-03:00
+[ROC] L=264 Beta=0.0049 tempo=135.9s | ataque=0.5878 picoInf=0.0063(d175) picoH=0.0003(d260) Rec=0.5861 Mortes=0.1015
+[BRA] L=1604 Beta=0.0995 tempo=134.5s | ataque=0.7675 picoInf=0.0105(d222) picoH=0.0012(d173) Rec=0.7664 Mortes=0.1165
+[MAN] L=1343 Beta=0.0995 tempo=142.3s | ataque=0.7591 picoInf=0.0105(d217) picoH=0.0009(d160) Rec=0.7582 Mortes=0.1214
+=== 3 CIDADES CONCLUIDAS ===

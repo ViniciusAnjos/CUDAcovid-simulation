@@ -1,0 +1,7 @@
+LOTE 4 CIDADES (GPU otimizada, MAXSIM=50, L real, Beta calibrado) inicio=2026-06-02T03:09:30.4525484-03:00
+[ROC] L=264 Beta=0.0049 MAXSIM=50 tempo=133s | ataque=0.5883 picoInf=0.0062(d166) picoH=0.0003(d171) picoICU=0(d202) Rec=0.5867 Mortes=0.1014
+[BRA] L=1604 Beta=0.0995 MAXSIM=50 tempo=129.6s | ataque=0.7674 picoInf=0.0105(d222) picoH=0.0012(d173) picoICU=0.0001(d318) Rec=0.7663 Mortes=0.1165
+[MAN] L=1343 Beta=0.0995 MAXSIM=50 tempo=138.9s | ataque=0.759 picoInf=0.0105(d217) picoH=0.0009(d160) picoICU=0.0001(d322) Rec=0.7581 Mortes=0.1214
+=== LOTE CONCLUIDO 2026-06-02T04:59:52.4303529-03:00 ===
+=== LOTE CONCLUIDO (SP=MAXSIM20) 2026-06-02T05:56:00.2022678-03:00 ===
+[SP] L=3355 Beta=0.0243 MAXSIM=50 tempo=633.5s (12.7s/sim) | ataque=0.726 picoInf=0.0102(d226) picoH=0.0011(d193) Rec=0.724 Mortes=0.1101  [com guards anti-trava + TdrDelay=60]

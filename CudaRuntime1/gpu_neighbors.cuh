@@ -24,7 +24,7 @@ __device__ ContactResult checkLocalContacts(int i, int j, int L, GPUPerson* popu
 
     // Check each neighbor
     for (int n = 0; n < numNeighbors; n++) {
-        if (isInfectious(population[neighborIndices[n]].Health)) {
+        if (isInfectious(d_HealthC[neighborIndices[n]])) {   // PERF: le do array compacto (cache)
             result.infectiousContacts++;
             result.anyContact = true;
         }
@@ -53,17 +53,19 @@ __device__ ContactResult checkRandomContacts(int i, int j, int L,
     for (int contact = 0; contact < randomContacts; contact++) {
         // Generate random position (avoiding self)
         int randI, randJ;
+        int gSelf = 0;   // GUARD anti-trava (RNG degenerado, ver tdr_investigation.md)
         do {
             rn = generateRandom(rngState);
             randI = (int)(rn * L) + 1;
 
             rn = generateRandom(rngState);
             randJ = (int)(rn * L) + 1;
+            if (++gSelf > 100) break;
         } while (randI == i && randJ == j);
 
         // Check if random contact is infectious
         int randIdx = to1D(randI, randJ, L);
-        if (isInfectious(population[randIdx].Health)) {
+        if (isInfectious(d_HealthC[randIdx])) {   // PERF: le do array compacto (cache)
             result.infectiousContacts++;
             result.anyContact = true;
         }
@@ -101,17 +103,19 @@ __device__ void spreadInfection_kernel(int i, int j, GPUPerson* population,
 
     for (int contact = 0; contact < randomContacts; contact++) {
         int Randomi, Randomj;
+        int gSelf = 0;   // GUARD anti-trava (RNG degenerado, ver tdr_investigation.md)
         do {
             rn = generateRandom(rngState);
             Randomi = (int)(rn * L) + 1;
 
             rn = generateRandom(rngState);
             Randomj = (int)(rn * L) + 1;
+            if (++gSelf > 100) break;
         } while (Randomi == i && Randomj == j);
 
         int randomIdx = to1D(Randomi, Randomj, L);
 
-        if (population[randomIdx].Health == d_S) {
+        if (d_HealthC[randomIdx] == d_S) {   // PERF: le do array compacto (cache)
 
             int oldval = atomicAdd((int*)&population[randomIdx].Exponent, 1);
 
