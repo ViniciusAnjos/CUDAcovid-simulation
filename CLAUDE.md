@@ -174,7 +174,19 @@ O speedup independe do Beta (tempo dominado pelo tamanho do grid).
 
 ---
 
-## Estado atual da validação (PROBLEMA EM ABERTO)
+## Estado atual da validação — ✅ RESOLVIDO (ver `benchmarks/RESUMO.md`)
+
+> **ATUALIZAÇÃO (jun/2026):** a divergência serial↔GPU foi **RESOLVIDA**. Eram **2 bugs no SERIAL**
+> (a GPU estava correta): (1) `Update.h` — isolamento ligado por engano via `#if(BeginOfIsolation==ON)`
+> avaliado pelo pré-processador; (2) `S.h` — `Sfunc` apagava infecções do infected-driven
+> (`else Swap=S`). Com os fixes, **mesmo β → mesmas curvas nas 4 cidades** (RMSE de S(t) < 1,2 p.p.).
+> Speedup serial×GPU: 1,8× (Rocinha) a **56× (SP)**. Benchmarks, profile, comparação entre GPUs e
+> variabilidade **completos** → síntese em **`benchmarks/RESUMO.md`**.
+> Branches: `r0` (serial + 2 fixes) · `fix/state-machine-timing` (validação + benchmarks).
+>
+> **O texto abaixo é HISTÓRICO (hipóteses da época, já superadas) — mantido por registro.**
+
+### Histórico (pré-correção)
 
 **Diagnóstico atualizado (com L grande, pós-fix #5):** com **mesmo Beta=0.0658**, a GPU produz uma
 epidemia **mais intensa e mais rápida** que o serial (ataque 81% vs 52%, pico ~120 dias antes).
@@ -252,12 +264,11 @@ Colunas: `dias S E IP IA TotalInfectious H ICU Recovered DeadCovid`
 
 ## Próximos passos
 
-1. **Diagnosticar a divergência do spread (PRIORIDADE)** — com mesmo Beta a GPU transmite mais
-   que o serial. Fazer diff de mecanismo `Neighbors`/`Neighborsinfected` (serial) ×
-   `checkAllContacts`/`spreadInfection` (GPU), focando em `Checked`/`Exponent` (dupla infecção)
-   e ordem dos kernels no dia.
-2. **Recalibrar Beta no full-sim GPU** — após corrigir o spread, variar β no full-sim até bater
-   R0≈3.5 / casar com o serial (ataque ~52%). A calibração paciente-zero (0.0163) não vale aqui.
-3. **Benchmark de performance** — ✅ feito para SP L=3355 (~87× speedup). Estender p/ outras cidades.
-4. **Testar todas as 4 cidades** — SP ✅ (serial+GPU), faltam Rocinha, Brasília, Manaus.
-5. **Abrir PR** no GitHub: `ViniciusAnjos/CUDAcovid-simulation`.
+1. ✅ **Divergência do spread diagnosticada e corrigida** — eram 2 bugs no serial (isolamento via
+   `#if`; Sfunc apagando infecções). Serial≡GPU no mesmo β. Ver `benchmarks/equivalencia_state_machine.md`.
+2. ✅ **Validação das 4 cidades** — serial e GPU batem no mesmo β (RMSE < 1,2 p.p.).
+3. ✅ **Benchmark de performance** — 4 cidades (1,8×–56×), eficiência, escala×L, block size, profile.
+4. ✅ **Comparação entre GPUs** (4070S × 1050 Ti) e **análise de variabilidade** (50 sims/cidade).
+5. ⬜ **Abrir PR** no GitHub: `ViniciusAnjos/CUDAcovid-simulation` (consolidar `fix/state-machine-timing`).
+
+> Síntese completa de tudo: **`benchmarks/RESUMO.md`**.
