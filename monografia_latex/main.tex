@@ -56,8 +56,8 @@
 \usepackage{indentfirst}		% Indenta o primeiro parágrafo de cada seção.
 \usepackage{color}				% Controle das cores
 \usepackage{graphicx}			% Inclusão de gráficos
-\usepackage[pdftex]{graphicx}
 \usepackage{times}
+\usepackage{amsmath}
 \usepackage{longtable}
 \usepackage{url}
 
@@ -242,34 +242,71 @@ Este trabalho possui os seguintes objetivos
 \chapter{Fundamentos teóricos}
 \label{FT}
 
+\section{Modelos epidemiológicos compartimentais}
+
+Para descrever a evolução de uma doença infecciosa em uma população ao longo do tempo, utilizam-se os modelos epidemiológicos compartimentais, nos quais a população é dividida em compartimentos que representam os possíveis estados de cada indivíduo em relação à doença, e a dinâmica da epidemia é descrita pela taxa de transição entre esses compartimentos. O modelo mais elementar é o SIR, no qual a população é dividida em três compartimentos: Suscetíveis (S), aqueles que ainda podem contrair a doença; Infecciosos (I), aqueles que possuem a doença e podem transmiti-la; e Removidos (R), aqueles que se recuperaram ou faleceram e não participam mais da transmissão. Em sua formulação determinística, a evolução de cada compartimento ao longo do tempo é descrita por um sistema de equações diferenciais ordinárias.
+
+\begin{equation}\label{eqn:sir}
+    \frac{dS}{dt} = -\beta \frac{S I}{N}, \quad
+    \frac{dI}{dt} = \beta \frac{S I}{N} - \gamma I, \quad
+    \frac{dR}{dt} = \gamma I
+\end{equation}
+
+no qual $N$ é o tamanho total da população, $\beta$ é a taxa de transmissão e $\gamma$ é a taxa de recuperação, tal que $1/\gamma$ representa o período médio durante o qual o indivíduo permanece infeccioso.
+
+Para doenças nas quais existe um período de latência entre o momento da infecção e o momento em que o indivíduo se torna capaz de transmitir o vírus, o modelo SIR é estendido para o modelo SEIR, no qual é acrescentado o compartimento dos Expostos (E), que representa os indivíduos que já adquiriram a doença, mas ainda passam por um período de incubação e não infectam outros indivíduos.
+
+\begin{equation}\label{eqn:seir}
+\begin{aligned}
+    \frac{dS}{dt} &= -\beta \frac{S I}{N}, & \frac{dE}{dt} &= \beta \frac{S I}{N} - \sigma E, \\
+    \frac{dI}{dt} &= \sigma E - \gamma I, & \frac{dR}{dt} &= \gamma I.
+\end{aligned}
+\end{equation}
+
+no qual $\sigma$ é a taxa de progressão do estado exposto para o estado infeccioso, tal que $1/\sigma$ representa o período médio de latência. A formulação determinística, entretanto, assume uma população homogênea e completamente misturada, na qual todos os indivíduos têm a mesma probabilidade de contato entre si, e logo não captura a estrutura espacial da população, a heterogeneidade entre os indivíduos nem o caráter estocástico do contágio. Para contemplar essas características, utiliza-se a modelagem baseada em agentes, descrita na Seção \ref{BD}, que pode ser entendida como a contraparte estocástica e espacial dos modelos compartimentais.
+
+\section{Número básico de reprodução}
+
+Um dos parâmetros mais importantes na caracterização de uma epidemia é o número básico de reprodução, denotado por $R_0$, definido como o número médio de indivíduos que um único caso infecta diretamente em uma população completamente suscetível. O valor de $R_0$ determina o comportamento inicial da epidemia, uma vez que, quando $R_0 < 1$, cada caso gera em média menos de um novo caso e a doença tende a se extinguir, enquanto, quando $R_0 > 1$, cada caso gera mais de um novo caso e a epidemia se espalha pela população. Nos modelos compartimentais o número básico de reprodução pode ser obtido a partir dos parâmetros da doença; no modelo SIR, por exemplo, $R_0 = \beta / \gamma$, tal que a razão entre a taxa de transmissão e a taxa de recuperação determina o potencial de espalhamento da doença.
+
+Como o número básico de reprodução depende da taxa de transmissão $\beta$, que por sua vez está relacionada à infecciosidade da doença e à forma de contato entre os indivíduos, a infecciosidade $\beta$ do modelo é calibrada de modo que o $R_0$ resultante corresponda ao valor estimado para a Covid-19, adotado neste trabalho como $R_0 = 3{,}5$. O procedimento de calibração da infecciosidade é descrito no Capítulo \ref{Met}.
+
 \section{Modelo baseado em agentes (ABM)}
 \label{BD}
-Modelos epidemiológicos abragem diversos tipos de modelos compartimentais, que incluem uma variedade de características, que simulam o comportamento de doenças infecciosas ao longo de um tempo em uma população. O modelo compartimental utilizado  será o SEIR, no qual a população é dividida em quatro compartimentos; Suscetíveis (S), representados por aqueles que ainda não adquiriram a doença e podem adquiri-la; Expostos (E), representados por aqueles que já adquiriram a doença, mas estão passando por um estado de latência e não infectam outros indivíduos; Infecciosos (I), aqueles que possuem a doença e infectam outros indivíduos e Removidos (R), aqueles que, ou se recuperaram da doença, ou faleceram. 
+Modelos epidemiológicos abrangem diversos tipos de modelos compartimentais, que incluem uma variedade de características, que simulam o comportamento de doenças infecciosas ao longo de um tempo em uma população. O modelo compartimental utilizado será o SEIR, no qual a população é dividida em quatro compartimentos: Suscetíveis (S), representados por aqueles que ainda não adquiriram a doença e podem adquiri-la; Expostos (E), representados por aqueles que já adquiriram a doença, mas estão passando por um estado de latência e não infectam outros indivíduos; Infecciosos (I), aqueles que possuem a doença e infectam outros indivíduos; e Removidos (R), aqueles que, ou se recuperaram da doença, ou faleceram. 
 
 \begin{figure}[h!]
     \centering
     \includegraphics[width=0.9\textwidth]{Flowchart.jpg}
-    \caption{Fluxograma do funcionamento geral do programa montado para a estimativa da Figura de Mérito. }
-    \label{Fluxograma}
+    \caption{Fluxograma do funcionamento geral do programa de simulação. }
+    \label{fig:fluxograma_geral}
 \end{figure}
 
-Em ABM as unidades que interagem entre si, os agentes, apresentam diversas características como estado de saúde, idade, sexo, taxa de isolamento e entre outros que sejam necessários para a simulação, e são distribuídos de forma heterogênea em uma rede que representa uma população. A evolução da doença na rede depende de como cada agente interage com sua vizinhança e com outros agentes aleatórios. Em uma rede quadrada o contato entre os agentes podem ser representados das seguintes formas
+Em ABM, as unidades que interagem entre si, os agentes, apresentam diversas características como estado de saúde, idade, sexo, taxa de isolamento, entre outras que sejam necessárias para a simulação, e são distribuídos de forma heterogênea em uma rede que representa uma população. A evolução da doença na rede depende de como cada agente interage com sua vizinhança e com outros agentes aleatórios. Em uma rede quadrada, o contato entre os agentes pode ser representado das seguintes formas
 
 \begin{itemize}
-    \item Vizinhança de Von Neumman, os 4 vizinhos (norte, leste, sul, oeste).
+    \item Vizinhança de Von Neumann, os 4 vizinhos (norte, leste, sul, oeste).
 
     \item Vizinhança de Moore, todos os 8 vizinhos adjacentes ao agente.
 
     \item Contatos aleatórios.
 \end{itemize}
 
-Logo a probabilidade de contágio dependerá da vizinhança e do número de contatos aleatórios, e pode ser representada a partir da seguinte equação.
+Logo, a probabilidade de contágio dependerá da vizinhança e do número de contatos aleatórios, e pode ser representada a partir da seguinte equação.
 
 \begin{equation}\label{eqn:prob}
     \centering
     P = 1 - ( 1 - \beta)^n
 \end{equation}
-no qual n é quantidade de infecciosos que tiveram contato com o agente $\beta$ é a infecciosidade da doença que depende de $R_0$, parâmetro que representa quantos agentes são infectados a partir de um único caso. Um número aleatório $r_n$ é gerado, e caso $r_n$ < P, o agente é infectado.
+no qual $n$ é a quantidade de infecciosos que tiveram contato com o agente e $\beta$ é a infecciosidade da doença, que depende de $R_0$, parâmetro que representa quantos agentes são infectados a partir de um único caso. Um número aleatório $r_n$ é gerado, e caso $r_n < P$, o agente é infectado.
+
+A dinâmica descrita, na qual cada agente ocupa uma posição fixa em uma rede regular e tem seu estado atualizado a cada passo de tempo em função do estado de sua vizinhança, caracteriza o modelo como um autômato celular probabilístico, no qual as vizinhanças de Von Neumann e de Moore são as mesmas empregadas na teoria de autômatos celulares. Diferentemente de um autômato celular determinístico, no qual a regra de atualização é fixa, no modelo baseado em agentes a transição entre os estados de saúde é governada por probabilidades, e logo cada execução do modelo corresponde a uma realização distinta da epidemia.
+
+\section{Método de Monte Carlo e geração de números aleatórios}
+
+Como a transição dos agentes entre os estados de saúde é decidida de forma probabilística, cada simulação do modelo corresponde a uma única realização do processo estocástico, e logo o resultado de uma simulação isolada não é representativo do comportamento médio da epidemia. Para obter uma estimativa confiável da evolução da doença, utiliza-se o método de Monte Carlo, no qual o modelo é simulado um grande número de vezes de forma independente, e as curvas de prevalência e incidência são obtidas a partir da média sobre todas as simulações realizadas. Quanto maior o número de simulações, menor a flutuação estatística em torno do comportamento médio, uma vez que os desvios de cada realização individual tendem a se compensar.
+
+O método de Monte Carlo depende da geração de números aleatórios, entretanto computadores produzem apenas números pseudoaleatórios, gerados de forma determinística a partir de um valor inicial denominado semente, tal que uma mesma semente produz sempre a mesma sequência de números. Em uma implementação serial uma única sequência de números pseudoaleatórios é suficiente, porém em uma implementação paralela a função geradora precisa ser \textit{thread-safe}, uma vez que diversas threads acessam o gerador simultaneamente, e a utilização de uma mesma sequência por todas as threads introduziria correlações indesejadas entre os agentes. Para contornar essa limitação, CUDA disponibiliza a biblioteca cuRAND, que oferece geradores de números pseudoaleatórios apropriados para a execução em paralelo.
 
 
 
@@ -278,7 +315,7 @@ no qual n é quantidade de infecciosos que tiveram contato com o agente $\beta$ 
 
 \section{Arquitetura de GPUs}
 
-Enquanto CPUs são orientadas para realizar operações mais complexas mas com baixa latência, GPUs são orientadas para maior \textit{throughput}, realizam operações mais simples, mas processam bastante tarefas ao mesmo tempo. Essas características tornam CPUs excelentes para tarefas em serial, enquanto GPUs são ótimas para tarefas paralelizaveis. Essa diferença ocorre devido a suas arquiteturas, CPUs tem poucos \textit{cores} que precisam de memória cache para diminuir a latência, enquanto GPUs não se preocupam tanto com latência, então possuem menos transístores para memória cache em benefício de mais transístores que realizarão processamento de tarefas, dependendo da família da GPU centenas e até milhares de \textit{cores} estão presentes.  
+Enquanto CPUs são orientadas para realizar operações mais complexas, mas com baixa latência, GPUs são orientadas para maior \textit{throughput}, realizam operações mais simples, mas processam bastantes tarefas ao mesmo tempo. Essas características tornam CPUs excelentes para tarefas em serial, enquanto GPUs são ótimas para tarefas paralelizáveis. Essa diferença ocorre devido a suas arquiteturas, CPUs têm poucos \textit{cores} que precisam de memória cache para diminuir a latência, enquanto GPUs não se preocupam tanto com latência, então possuem menos transístores para memória cache em benefício de mais transístores que realizarão processamento de tarefas, dependendo da família da GPU, centenas e até milhares de \textit{cores} estão presentes.  
 
 
 
@@ -286,18 +323,24 @@ Enquanto CPUs são orientadas para realizar operações mais complexas mas com b
     \centering
     \includegraphics[width=0.9\textwidth]{gpu-devotes-more-transistors-to-data-processing.png}
     \caption{Arquitetura de uma CPU e de uma GPU. }
-    \label{Fluxograma}
+    \label{fig:cpu_gpu}
 \end{figure}
 
-GPUs contém SMs (\textit{streaming multiprocessors}), que contém CUDA \textit{cores} que realizarão as tarefas, cache L1, memória compartilhada entre os processadores dentro do SM e cache L2. Para obter maior \textit{throughput} os \textit{cores} nos SMs são SIMT (\textit{single instruction multiple thread}), para cada tarefa necessária um grupo de 32 \textit{cores} realizará a mesma tarefa, esses grupos são chamados de \textit{warps}, e o processamento da tarefas serão sempre realizados pela execução dos \textit{warps}.
+GPUs contêm SMs (\textit{streaming multiprocessors}), que contêm CUDA \textit{cores} que realizarão as tarefas, cache L1, memória compartilhada entre os processadores dentro do SM e cache L2. Para obter maior \textit{throughput}, os \textit{cores} nos SMs são SIMT (\textit{single instruction multiple thread}), para cada tarefa necessária, um grupo de 32 \textit{cores} realizará a mesma tarefa, esses grupos são chamados de \textit{warps}, e o processamento das tarefas será sempre realizado pela execução dos \textit{warps}.
 
-\section{Modelo de progamação em CUDA}
+\section{Hierarquia de memória da GPU}
 
-CUDA é uma API (\textit{Application Programming Interface}) que permite a criação de programas em C/C++ em GPUs Nvidia que sejam compatíveis. Em CUDA o programador cria funções semelhantes as funções de C/C++, essas funções chamadas de kernels, realizam N tarefas para as N CUDA threads disponíveis na GPU utilizada. Um conjunto de threads é chamado de "blocks" e um conjunto de "blocks" forma um "grid", esses conjuntos podem ter até 3 dimensões. e podem ser identificados com variáveis nativas dadas por: \textbf{threadIDx, blockIdx,
-blockDim} e \textbf{gridDim} manipulando essas variáveis o progamador consegue acessar e realizar tarefas para todas as threads.
+Além da grande quantidade de \textit{cores}, o desempenho de um programa executado em GPU depende fortemente da forma como os dados são acessados na memória, organizada em uma hierarquia de níveis com diferentes capacidades e latências. No nível mais próximo dos \textit{cores} estão os registradores, privados de cada thread e de acesso mais rápido; em seguida está a memória compartilhada, acessível por todas as threads de um mesmo bloco e localizada dentro do SM, de baixa latência; e, no nível mais distante, está a memória global, de maior capacidade, porém de maior latência, na qual residem os dados copiados do \textit{host} para o \textit{device}. Entre a memória global e os SMs encontram-se ainda as memórias cache L1, privada de cada SM, e L2, compartilhada entre todos os SMs, que armazenam os dados acessados recentemente com o intuito de reduzir o número de acessos à memória global.
+
+O acesso à memória global é mais eficiente quando é coalescido, ou seja, quando threads de uma mesma warp acessam posições contíguas de memória, que podem então ser atendidas em uma única transação. Em diversas aplicações o desempenho não é limitado pela capacidade de processamento, mas pela largura de banda da memória, situação na qual o programa é dito limitado por memória (\textit{memory-bound}), e logo a forma como os dados são estruturados e acessados torna-se determinante para o desempenho. Em particular, estruturas de dados compactas, que reduzem o volume de dados transferidos e permitem que o conjunto de dados em uso seja mantido na memória cache L2, podem proporcionar ganhos expressivos de desempenho.
+
+\section{Modelo de programação em CUDA}
+
+CUDA é uma API (\textit{Application Programming Interface}) que permite a criação de programas em C/C++ em GPUs Nvidia que sejam compatíveis. Em CUDA, o programador cria funções semelhantes às funções de C/C++; essas funções, chamadas de kernels, realizam N tarefas para as N CUDA threads disponíveis na GPU utilizada. Um conjunto de threads é chamado de "blocks" e um conjunto de "blocks" forma um "grid", esses conjuntos podem ter até 3 dimensões, e podem ser identificados com variáveis nativas dadas por: \textbf{threadIdx, blockIdx,
+blockDim} e \textbf{gridDim}. Manipulando essas variáveis, o programador consegue acessar e realizar tarefas para todas as threads.
 
 
-Ao desenvolver programas utilizando a arquitetura CUDA, está-se envolvido em uma computação heterogênea, uma vez que o programa faz uso da interação entre a unidade central de processamento (CPU), também conhecida como \textit{host}, e a unidade de processamento gráfico (GPU), denominada como \textit{device}. No host o código é responsável para realizar as tarefas que precisam ser feitas em serial, alocações de memória, copiar os dados da memória da CPU para a GPU e então chamar os kernels para realizar as tarefas no device. Na GPU cada SM realizará as tarefas por bloco e após a finalização das execuções, o \textit{host} copia os resultados obtidos da memória da GPU para CPU. A Figura \ref{cuda} representa como funciona um programa feito em CUDA.
+Ao desenvolver programas utilizando a arquitetura CUDA, está-se envolvido em uma computação heterogênea, uma vez que o programa faz uso da interação entre a unidade central de processamento (CPU), também conhecida como \textit{host}, e a unidade de processamento gráfico (GPU), denominada \textit{device}. No host, o código é responsável por realizar as tarefas que precisam ser feitas em serial, alocações de memória, copiar os dados da memória da CPU para a GPU e então chamar os kernels para realizar as tarefas no device. Na GPU, cada SM realizará as tarefas por bloco e, após a finalização das execuções, o \textit{host} copia os resultados obtidos da memória da GPU para a CPU. A Figura \ref{cuda} representa como funciona um programa feito em CUDA.
 
 \begin{figure}[h!]
     \centering
@@ -315,18 +358,42 @@ Ao desenvolver programas utilizando a arquitetura CUDA, está-se envolvido em um
 
 
 
+\section{Métricas de desempenho paralelo}
+
+Para avaliar o ganho obtido com a paralelização de um programa, utilizam-se métricas que comparam o desempenho da implementação paralela com o da implementação serial. A principal delas é a aceleração (\textit{speedup}), definida como a razão entre o tempo de execução da implementação serial e o tempo de execução da implementação paralela.
+
+\begin{equation}\label{eqn:speedup}
+    S = \frac{T_{serial}}{T_{paralelo}}
+\end{equation}
+
+no qual $T_{serial}$ é o tempo de execução do programa em um único processador e $T_{paralelo}$ é o tempo de execução do programa paralelizado. Uma segunda métrica é a eficiência, definida como a razão entre a aceleração obtida e o número de unidades de processamento utilizadas.
+
+\begin{equation}\label{eqn:eficiencia}
+    E = \frac{S}{p}
+\end{equation}
+
+no qual $p$ é o número de unidades de processamento, tal que a eficiência indica o quanto cada unidade contribui, em média, para a aceleração total.
+
+A aceleração que pode ser obtida, entretanto, é limitada pela fração do programa que precisa ser executada de forma serial, relação expressa pela Lei de Amdahl.
+
+\begin{equation}\label{eqn:amdahl}
+    S = \frac{1}{f + \dfrac{1 - f}{p}}
+\end{equation}
+
+no qual $f$ é a fração do programa que permanece serial, tal que, à medida que o número de unidades de processamento $p$ aumenta, a aceleração tende ao limite $1/f$, e logo a parcela serial do programa determina o ganho máximo que pode ser alcançado, independentemente da quantidade de \textit{cores} disponíveis. Em GPUs, nas quais milhares de threads são executadas simultaneamente, a aceleração é frequentemente medida de forma empírica, comparando-se diretamente o tempo de execução da implementação paralela com o da implementação serial de referência.
+
 \chapter{Metodologia}
 \label{Met}
 
 \section{O Modelo}
 
-A modelagem baseada em agentes utilizada será uma modificação do modelo compartimental SEIR, os indivíduos podem ter os seguintes estados de saúde, suscetíveis (X), expostos (E), pré-sintomáticos (P), assintomáticos (A), sintomático leve ($S_l$), sintomático moderado ($S_m$), sintomático severo ($S_s$), hospitalizado (H), internados na UTI (UTI), recuperados (R) e mortos (M). A Figura \ref{Fluxograma} abaixo demonstra como ocorre os possíveis movimentos dentre os estados de saúde.
+A modelagem baseada em agentes utilizada será uma modificação do modelo compartimental SEIR, os indivíduos podem ter os seguintes estados de saúde, suscetíveis (X), expostos (E), pré-sintomáticos (P), assintomáticos (A), sintomático leve ($S_l$), sintomático moderado ($S_m$), sintomático severo ($S_s$), hospitalizado (H), internados na UTI (UTI), recuperados (R) e mortos (M). A Figura \ref{fig:estados_saude} abaixo demonstra como ocorre os possíveis movimentos dentre os estados de saúde.
 
 \begin{figure}[h!]
     \centering
     \includegraphics[width=0.9\textwidth]{covid fluxograma.jpg}
     \caption{Fluxograma do movimento entre estados de saúde. }
-    \label{Fluxograma}
+    \label{fig:estados_saude}
 \end{figure}
 
 O indivíduo suscetível (X) entra em contato com o vírus e torna-se exposto (E), após o período de incubação torna-se pré-sintomático (P), a replicação do virus ocorre e o indivíduo ou torna-se assintomático (A) e se recupera da doença, ou a doença evolui e o indivíduo se torna infeccioso, o indivíduo então pode ter sintomas leves ($S_l$), moderados ($S_m$) ou severos ($S_s$), caso não se recupere, será hospitalizado (H) e em casos mais graves internados em unidades de tratamento intensivo (UTI), na UTI o indivíduo ou se recupera, ou morre devido a doença.
@@ -447,25 +514,25 @@ Para implemetação em CUDA mudanças nas redes serão necesárias para que o se
 \begin{thebibliography}{9}
 
 
-\bibitem{textbook}
-Merrill R. Introduction to Epidemiology. Jones & Bartlett Learning: London, United Kingdom, 2010.
+\bibitem{merrill}
+Merrill R. Introduction to Epidemiology. Jones \& Bartlett Learning: London, United Kingdom, 2010.
 
-\bibitem{textbook}
-Keeling, M.J. and Rohani, P. (2008) Modeling infectious diseases in humans and animals. Princeton: Princeton University Press. 
+\bibitem{keeling}
+Keeling, M.J. and Rohani, P. (2008) Modeling infectious diseases in humans and animals. Princeton: Princeton University Press.
 
-\bibitem{texbook}
-Sanders, J. and Kandrot, E. (2011) Cuda by example: An introduction to general-purpose GPU programming. Upper Saddle River: Addison-Wesley. 
+\bibitem{sanders}
+Sanders, J. and Kandrot, E. (2011) Cuda by example: An introduction to general-purpose GPU programming. Upper Saddle River: Addison-Wesley.
 
-\bibitem{textbook}
-Cheng, J., Grossman, M. and McKercher, T. (2014) Professional CUDA® C programming. INpolis, IN: Wrox, a Wiley brand. 
+\bibitem{cheng}
+Cheng, J., Grossman, M. and McKercher, T. (2014) Professional CUDA\textregistered{} C programming. INpolis, IN: Wrox, a Wiley brand.
 
-\bibitem{url}
-http://cnes2.datasus.gov.br/Mod\_Ind\_Tipo\_Leito.asp?VEstado=00		
+\bibitem{datasus}
+http://cnes2.datasus.gov.br/Mod\_Ind\_Tipo\_Leito.asp?VEstado=00
 
-\bibitem{url}
+\bibitem{cudaguide}
 https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html
 
-\bibitem{url}
+\bibitem{curand}
 https://docs.nvidia.com/cuda/curand/index.html
 
 
