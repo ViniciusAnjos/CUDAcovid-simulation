@@ -112,7 +112,7 @@ void Updatefunc()
 
 	//printf("Day=%i\n",CountDays);
 
-#if(BeginOfIsolation==ON) 
+	if (BeginOfIsolation == ON)   // FIX: runtime (era #if pre-processador -> sempre verdadeiro)
 	{
 
 		MaximumIsolated = ProportionIsolated * N;
@@ -133,7 +133,6 @@ void Updatefunc()
 		//printf("Time=%i CountIS=%i MaximumIsolated=%i\n",CountDays,CountIS,MaximumIsolated);
 		//}
 	}
-#endif
 
 
 	DeadCovid_Total += New_DeadCovid;
