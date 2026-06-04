@@ -60,6 +60,8 @@
 \usepackage{amsmath}
 \usepackage{tikz}
 \usetikzlibrary{positioning,calc,arrows.meta}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 \usepackage{float}
 \usepackage{longtable}
 \usepackage{url}
@@ -247,6 +249,8 @@ Este trabalho possui os seguintes objetivos
 
 \section{Modelos epidemiológicos compartimentais}
 
+\subsection{Modelos SIR e SEIR}
+
 Para descrever a evolução de uma doença infecciosa em uma população ao longo do tempo, utilizam-se os modelos epidemiológicos compartimentais, nos quais a população é dividida em compartimentos que representam os possíveis estados de cada indivíduo em relação à doença, e a dinâmica da epidemia é descrita pela taxa de transição entre esses compartimentos. O modelo mais elementar é o SIR, no qual a população é dividida em três compartimentos: Suscetíveis (S), aqueles que ainda podem contrair a doença; Infecciosos (I), aqueles que possuem a doença e podem transmiti-la; e Removidos (R), aqueles que se recuperaram ou faleceram e não participam mais da transmissão. Em sua formulação determinística, a evolução de cada compartimento ao longo do tempo é descrita por um sistema de equações diferenciais ordinárias.
 
 \begin{equation}\label{eqn:sir}
@@ -268,9 +272,24 @@ Para doenças nas quais existe um período de latência entre o momento da infec
 
 no qual $\sigma$ é a taxa de progressão do estado exposto para o estado infeccioso, tal que $1/\sigma$ representa o período médio de latência. A formulação determinística, entretanto, assume uma população homogênea e completamente misturada, na qual todos os indivíduos têm a mesma probabilidade de contato entre si, e logo não captura a estrutura espacial da população, a heterogeneidade entre os indivíduos nem o caráter estocástico do contágio. Para contemplar essas características, utiliza-se a modelagem baseada em agentes, descrita na Seção \ref{BD}, que pode ser entendida como a contraparte estocástica e espacial dos modelos compartimentais.
 
-\section{Número básico de reprodução}
+\subsection{Número básico de reprodução}
 
 Um dos parâmetros mais importantes na caracterização de uma epidemia é o número básico de reprodução, denotado por $R_0$, definido como o número médio de indivíduos que um único caso infecta diretamente em uma população completamente suscetível. O valor de $R_0$ determina o comportamento inicial da epidemia, uma vez que, quando $R_0 < 1$, cada caso gera em média menos de um novo caso e a doença tende a se extinguir, enquanto, quando $R_0 > 1$, cada caso gera mais de um novo caso e a epidemia se espalha pela população. Nos modelos compartimentais o número básico de reprodução pode ser obtido a partir dos parâmetros da doença; no modelo SIR, por exemplo, $R_0 = \beta / \gamma$, tal que a razão entre a taxa de transmissão e a taxa de recuperação determina o potencial de espalhamento da doença.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\small, level distance=1.25cm,
+  level 1/.style={sibling distance=3.4cm},
+  level 2/.style={sibling distance=1.1cm},
+  every node/.style={circle, draw, thick, minimum size=0.65cm, inner sep=0}]
+  \node[fill=red!55] {}
+    child { node[fill=orange!45] {} child{node{}} child{node{}} child{node{}} }
+    child { node[fill=orange!45] {} child{node{}} child{node{}} child{node{}} }
+    child { node[fill=orange!45] {} child{node{}} child{node{}} child{node{}} };
+\end{tikzpicture}
+\caption{Ilustração do número básico de reprodução. Cada caso infecta, em média, $R_0$ novos indivíduos; quando $R_0 > 1$, o número de casos cresce a cada geração.}
+\label{fig:r0}
+\end{figure}
 
 Como o número básico de reprodução depende da taxa de transmissão $\beta$, que por sua vez está relacionada à infecciosidade da doença e à forma de contato entre os indivíduos, a infecciosidade $\beta$ do modelo é calibrada de modo que o $R_0$ resultante corresponda ao valor estimado para a Covid-19, adotado neste trabalho como $R_0 = 3{,}5$. O procedimento de calibração da infecciosidade é descrito no Capítulo \ref{Met}.
 
@@ -334,6 +353,13 @@ A dinâmica descrita, na qual cada agente ocupa uma posição fixa em uma rede r
 
 Como a transição dos agentes entre os estados de saúde é decidida de forma probabilística, cada simulação do modelo corresponde a uma única realização do processo estocástico, e logo o resultado de uma simulação isolada não é representativo do comportamento médio da epidemia. Para obter uma estimativa confiável da evolução da doença, utiliza-se o método de Monte Carlo, no qual o modelo é simulado um grande número de vezes de forma independente, e as curvas de prevalência e incidência são obtidas a partir da média sobre todas as simulações realizadas. Quanto maior o número de simulações, menor a flutuação estatística em torno do comportamento médio, uma vez que os desvios de cada realização individual tendem a se compensar.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{monte_carlo.pdf}
+\caption{Realizações individuais do modelo e a média obtida pelo método de Monte Carlo, para a curva de prevalência de infecciosos. Cada realização corresponde a uma execução estocástica do modelo; a média sobre as 50 simulações fornece a estimativa do comportamento epidêmico.}
+\label{fig:montecarlo}
+\end{figure}
+
 O método de Monte Carlo depende da geração de números aleatórios, entretanto computadores produzem apenas números pseudoaleatórios, gerados de forma determinística a partir de um valor inicial denominado semente, tal que uma mesma semente produz sempre a mesma sequência de números. Em uma implementação serial uma única sequência de números pseudoaleatórios é suficiente, porém em uma implementação paralela a função geradora precisa ser \textit{thread-safe}, uma vez que diversas threads acessam o gerador simultaneamente, e a utilização de uma mesma sequência por todas as threads introduziria correlações indesejadas entre os agentes. Para contornar essa limitação, CUDA disponibiliza a biblioteca cuRAND, que oferece geradores de números pseudoaleatórios apropriados para a execução em paralelo.
 
 
@@ -385,6 +411,32 @@ CUDA é uma API (\textit{Application Programming Interface}) que permite a cria�
 blockDim} e \textbf{gridDim}. Manipulando essas variáveis, o programador consegue acessar e realizar tarefas para todas as threads.
 
 
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\small, >=Stealth]
+  % Grid de blocks
+  \draw[thick, rounded corners] (-0.35,-0.35) rectangle (3.75,2.05);
+  \node[anchor=south west, font=\footnotesize] at (-0.35,2.05) {\textbf{Grid}};
+  \foreach \i in {0,1,2} \foreach \j in {0,1} {
+    \node[draw, fill=blue!12, minimum size=0.9cm] (b\i\j) at (\i*1.15+0.3, \j*1.1+0.25) {};
+  }
+  \node[font=\scriptsize] at (1.7,-0.7) {conjunto de \textit{blocks}};
+  % Bloco ampliado
+  \begin{scope}[xshift=6.2cm]
+    \draw[thick, rounded corners, fill=blue!12] (-0.35,-0.35) rectangle (2.45,2.05);
+    \node[anchor=south west, font=\footnotesize] at (-0.35,2.05) {\textbf{Block}};
+    \foreach \i in {0,1,2,3} \foreach \j in {0,1,2,3} {
+      \fill[orange!65] (\i*0.5+0.1, \j*0.42+0.12) rectangle ++(0.38,0.32);
+    }
+    \node[font=\scriptsize] at (1.05,-0.7) {conjunto de \textit{threads}};
+  \end{scope}
+  % seta de ampliacao
+  \draw[->, thick, dashed] (3.85,1.0) -- (5.75,1.0);
+\end{tikzpicture}
+\caption{Hierarquia de execução em CUDA: as threads são agrupadas em \textit{blocks} e os \textit{blocks} formam um \textit{grid}. À direita, a ampliação de um \textit{block} e suas threads.}
+\label{fig:gridblock}
+\end{figure}
+
 Ao desenvolver programas utilizando a arquitetura CUDA, está-se envolvido em uma computação heterogênea, uma vez que o programa faz uso da interação entre a unidade central de processamento (CPU), também conhecida como \textit{host}, e a unidade de processamento gráfico (GPU), denominada \textit{device}. No host, o código é responsável por realizar as tarefas que precisam ser feitas em serial, alocações de memória, copiar os dados da memória da CPU para a GPU e então chamar os kernels para realizar as tarefas no device. Na GPU, cada SM realizará as tarefas por bloco e, após a finalização das execuções, o \textit{host} copia os resultados obtidos da memória da GPU para a CPU. A Figura \ref{cuda} representa como funciona um programa feito em CUDA.
 
 \begin{figure}[H]
@@ -426,6 +478,29 @@ A aceleração que pode ser obtida, entretanto, é limitada pela fração do pro
 \end{equation}
 
 no qual $f$ é a fração do programa que permanece serial, tal que, à medida que o número de unidades de processamento $p$ aumenta, a aceleração tende ao limite $1/f$, e logo a parcela serial do programa determina o ganho máximo que pode ser alcançado, independentemente da quantidade de \textit{cores} disponíveis. Em GPUs, nas quais milhares de threads são executadas simultaneamente, a aceleração é frequentemente medida de forma empírica, comparando-se diretamente o tempo de execução da implementação paralela com o da implementação serial de referência.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=12cm, height=7.5cm,
+    xlabel={Número de processadores $p$},
+    ylabel={Aceleração $S$},
+    xmode=log, log basis x={2},
+    xmin=1, xmax=4096, ymin=0,
+    legend pos=north west,
+    grid=both, grid style={gray!25},
+    domain=1:4096, samples=80,
+]
+  \addplot[blue, thick]          {1/(0.05+(1-0.05)/x)}; \addlegendentry{$f=0{,}05$}
+  \addplot[red, thick]           {1/(0.10+(1-0.10)/x)}; \addlegendentry{$f=0{,}10$}
+  \addplot[green!60!black, thick]{1/(0.25+(1-0.25)/x)}; \addlegendentry{$f=0{,}25$}
+  \addplot[orange, thick]        {1/(0.50+(1-0.50)/x)}; \addlegendentry{$f=0{,}50$}
+\end{axis}
+\end{tikzpicture}
+\caption{Lei de Amdahl: aceleração $S$ em função do número de processadores $p$ para diferentes frações seriais $f$. A aceleração satura no limite $1/f$, evidenciando que a parcela serial do programa limita o ganho máximo, independentemente do número de processadores.}
+\label{fig:amdahl}
+\end{figure}
 
 \chapter{Metodologia}
 \label{Met}
