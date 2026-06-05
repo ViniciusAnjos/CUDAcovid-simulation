@@ -63,6 +63,7 @@
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 \usepackage{float}
+\usepackage[portuguese]{algorithm2e}
 \usepackage{longtable}
 \usepackage{url}
 
@@ -507,7 +508,7 @@ no qual $f$ é a fração do programa que permanece serial, tal que, à medida q
 
 \section{O Modelo}
 
-A modelagem baseada em agentes utilizada será uma modificação do modelo compartimental SEIR, os indivíduos podem ter os seguintes estados de saúde, suscetíveis (X), expostos (E), pré-sintomáticos (P), assintomáticos (A), sintomático leve ($S_l$), sintomático moderado ($S_m$), sintomático severo ($S_s$), hospitalizado (H), internados na UTI (UTI), recuperados (R) e mortos (M). A Figura \ref{fig:estados_saude} abaixo demonstra como ocorre os possíveis movimentos dentre os estados de saúde.
+A modelagem baseada em agentes utilizada será uma modificação do modelo compartimental SEIR; os indivíduos podem ter os seguintes estados de saúde: suscetíveis (X), expostos (E), pré-sintomáticos (P), assintomáticos (A), sintomático leve ($S_l$), sintomático moderado ($S_m$), sintomático severo ($S_s$), hospitalizado (H), internados na UTI (UTI), recuperados (R) e mortos (M). A Figura \ref{fig:estados_saude} abaixo demonstra como ocorrem os possíveis movimentos dentre os estados de saúde.
 
 \begin{figure}[H]
     \centering
@@ -516,14 +517,90 @@ A modelagem baseada em agentes utilizada será uma modificação do modelo compa
     \label{fig:estados_saude}
 \end{figure}
 
-O indivíduo suscetível (X) entra em contato com o vírus e torna-se exposto (E), após o período de incubação torna-se pré-sintomático (P), a replicação do virus ocorre e o indivíduo ou torna-se assintomático (A) e se recupera da doença, ou a doença evolui e o indivíduo se torna infeccioso, o indivíduo então pode ter sintomas leves ($S_l$), moderados ($S_m$) ou severos ($S_s$), caso não se recupere, será hospitalizado (H) e em casos mais graves internados em unidades de tratamento intensivo (UTI), na UTI o indivíduo ou se recupera, ou morre devido a doença.
+O indivíduo suscetível (X) entra em contato com o vírus e torna-se exposto (E), após o período de incubação torna-se pré-sintomático (P), a replicação do vírus ocorre e o indivíduo ou torna-se assintomático (A) e se recupera da doença, ou a doença evolui e o indivíduo se torna infeccioso, o indivíduo então pode ter sintomas leves ($S_l$), moderados ($S_m$) ou severos ($S_s$), caso não se recupere, será hospitalizado (H) e, em casos mais graves, internado em unidades de tratamento intensivo (UTI); na UTI o indivíduo ou se recupera, ou morre devido à doença.
 
-No modelo cada indivíduo ocupa uma posição em uma matriz quadrada de lado L com poulação total $N = L X L$, tal que N é referente a cada cidade analisada. No inicio de cada simulação a população é iniciada com todos indivíduos com estado suscetível (X), exceto 5 indivíduos que estarão em estado pré-sintomático, os indivíduos infectados entrarão em contato com sua vizinhança, Von Neumann para as cidades de baixa densidade populacional ou Moore para cidades de alta densidade, além dos contatos com outros indivíduos aleatórios. A probabilidade de infecção dos indivídous suscetíveis é dada pela equação \ref{eqn:prob}, um número aleatório r é gerado e caso $r < P$, o indivíduo é infectado.
+No modelo, cada indivíduo ocupa uma posição em uma matriz quadrada de lado L com população total $N = L \times L$, tal que N é referente a cada cidade analisada. No início de cada simulação a população é iniciada com todos os indivíduos com estado suscetível (X), exceto 5 indivíduos que estarão em estado pré-sintomático, os indivíduos infectados entrarão em contato com sua vizinhança, Von Neumann para as cidades de baixa densidade populacional ou Moore para cidades de alta densidade, além dos contatos com outros indivíduos aleatórios. A probabilidade de infecção dos indivíduos suscetíveis é dada pela equação \ref{eqn:prob}, um número aleatório $r$ é gerado e caso $r < P$, o indivíduo é infectado.
+
+\section{Inicialização da população}
+
+No início de cada simulação, além de receber o estado de saúde, cada indivíduo recebe uma idade atribuída de acordo com a estrutura etária da população brasileira, de modo que a distribuição de idades da rede reproduza a pirâmide etária real do país. A cada indivíduo é também atribuída uma idade de morte natural, sorteada por amostragem por rejeição a partir das probabilidades de morte natural por faixa etária, tal que a idade de morte respeita a expectativa de vida observada. Dessa forma, a rede inicia com uma população heterogênea em idade, o que é relevante uma vez que a evolução da Covid-19 e a sua letalidade dependem fortemente da faixa etária do indivíduo.
+
+Os leitos de hospital e de UTI disponíveis para os doentes de Covid-19 são definidos a partir da razão de leitos por habitante de cada cidade, descontada a ocupação inicial de 50\% por outras doenças, de modo que apenas metade dos leitos esteja efetivamente disponível no início da simulação. A epidemia é iniciada com 5 indivíduos no estado pré-sintomático (P), distribuídos aleatoriamente na rede, enquanto os demais indivíduos permanecem suscetíveis.
+
+\section{Dinâmica da simulação}
+
+A simulação evolui em passos de tempo discretos, nos quais cada passo corresponde a um dia. A cada passo, antes de atualizar os estados, são aplicadas condições de contorno periódicas à rede, de modo que os indivíduos das bordas tenham como vizinhos os indivíduos da borda oposta, e logo a rede se comporta como uma superfície sem fronteiras, evitando efeitos de borda. Em seguida, percorre-se toda a rede e, para cada indivíduo, é aplicada a regra de transição correspondente ao seu estado de saúde atual, que determina o seu próximo estado. Por fim, a rede é atualizada de forma síncrona, ou seja, as transições calculadas para todos os indivíduos são aplicadas simultaneamente ao final do passo, de modo que a atualização de um indivíduo não interfira no cálculo dos demais no mesmo passo. O Algoritmo \ref{alg:simulacao} resume esse procedimento.
+
+\begin{algorithm}[H]
+\DontPrintSemicolon
+\caption{Laço principal da simulação}
+\label{alg:simulacao}
+\For{cada simulação}{
+  inicializa a população: estados de saúde, idades e leitos disponíveis\;
+  \For{cada passo de tempo $t$ correspondente a um dia}{
+    aplica as condições de contorno periódicas à rede\;
+    \ForEach{indivíduo da rede}{
+      aplica a regra de transição correspondente ao seu estado de saúde\;
+    }
+    atualiza a rede de forma síncrona\;
+    substitui os indivíduos que sofreram morte natural por novos suscetíveis\;
+    contabiliza a prevalência e a incidência de cada estado\;
+  }
+}
+calcula a média das curvas sobre todas as simulações\;
+\end{algorithm}
+
+\subsection{Mecanismos de contágio}
+
+A transmissão da doença ocorre por dois mecanismos complementares, ambos baseados na probabilidade de contágio dada pela Equação \ref{eqn:prob}. No primeiro mecanismo, cada indivíduo suscetível verifica a sua vizinhança e os seus contatos aleatórios, cujo número varia conforme a cidade, em busca de indivíduos infectados; o número de infectados encontrados, $n$, determina a probabilidade $P = 1 - (1 - \beta)^n$ de o suscetível ser infectado. No segundo mecanismo, cada indivíduo infectado, enquanto se encontra no período infeccioso, procura indivíduos suscetíveis entre seus contatos e tenta infectá-los, também de acordo com a probabilidade de contágio.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\small, >=Stealth,
+   pessoa/.style={circle, draw, thick, minimum size=0.62cm, inner sep=0},
+   susc/.style={pessoa, fill=green!18},
+   infec/.style={pessoa, fill=red!55, text=white}]
+  % Painel (a): suscetivel busca infectados
+  \begin{scope}
+    \node[susc] (c1) at (0,0) {S};
+    \node[infec] (a1) at (-1.2,0.9) {I};
+    \node[susc]  (a2) at (1.2,0.9) {S};
+    \node[infec] (a3) at (1.3,-0.5) {I};
+    \node[infec] (a4) at (-1.1,-0.9) {I};
+    \draw[->, dashed] (c1) -- (a1);
+    \draw[->, dashed] (c1) -- (a2);
+    \draw[->, dashed] (c1) -- (a3);
+    \draw[->, dashed] (c1) -- (a4);
+    \node[font=\footnotesize, align=center] at (0,-1.9) {(a) Suscetível busca\\ infectados};
+  \end{scope}
+  % Painel (b): infectado busca suscetiveis
+  \begin{scope}[xshift=6cm]
+    \node[infec] (c2) at (0,0) {I};
+    \node[susc] (b1) at (-1.2,0.9) {S};
+    \node[susc] (b2) at (1.2,0.9) {S};
+    \node[susc] (b3) at (1.3,-0.5) {S};
+    \node[susc] (b4) at (-1.1,-0.9) {S};
+    \draw[->, thick] (c2) -- (b1);
+    \draw[->, thick] (c2) -- (b2);
+    \draw[->, thick] (c2) -- (b3);
+    \draw[->, thick] (c2) -- (b4);
+    \node[font=\footnotesize, align=center] at (0,-1.9) {(b) Infectado busca\\ suscetíveis};
+  \end{scope}
+\end{tikzpicture}
+\caption{Os dois mecanismos de contágio do modelo. Em (a), o indivíduo suscetível verifica a sua vizinhança e os seus contatos aleatórios em busca de infectados; em (b), o indivíduo infectado procura indivíduos suscetíveis entre seus contatos e tenta infectá-los. As setas indicam o sentido da busca em cada mecanismo.}
+\label{fig:contagio}
+\end{figure}
+
+O segundo mecanismo é executado pelos estados pré-sintomático (P), assintomático (A) e sintomático leve ($S_l$), que representam os indivíduos infecciosos que ainda circulam na população, enquanto os estados sintomático moderado ($S_m$) e severo ($S_s$), por estarem afastados do convívio social, não procuram novos suscetíveis. Para evitar que um mesmo suscetível seja infectado duas vezes no mesmo passo de tempo, uma vez pela sua própria busca e outra por um infectado que o encontrou, utiliza-se um mecanismo de marcação que verifica se o indivíduo já foi contabilizado, garantindo a consistência da atualização.
+
+\subsection{Transição entre estados e morte natural}
+
+Cada estado de saúde possui uma duração, sorteada no momento em que o indivíduo entra no estado, dentro dos limites mínimo e máximo definidos para aquele estado (Tabela \ref{tab:dias}). Enquanto a duração não é atingida, o indivíduo permanece no mesmo estado; ao atingi-la, ocorre a transição para o próximo estado, que pode ser determinística ou sorteada de acordo com as probabilidades de transição (Tabela \ref{tab:prob}) e, em alguns casos, com a probabilidade de recuperação correspondente à faixa etária do indivíduo. A passagem para os estados de hospitalização (H) e de UTI depende ainda da disponibilidade de leitos, de modo que um indivíduo em estado severo só é hospitalizado se houver leito disponível.
+
+Independentemente do estado de saúde, qualquer indivíduo pode sofrer morte natural ao atingir a sua idade de morte, situação na qual é removido e imediatamente substituído por um novo indivíduo suscetível, com idade sorteada novamente a partir da estrutura etária, de modo que o tamanho total da população permaneça constante ao longo da simulação.
 
 \section{Parâmetros}
-Para cada cidade a ser utilizada no modelo, a calibração da infecciosidade $\beta$ é necessária para que seja padrão em todas as cidades que
-$R_0$ = 3.5, a calibração é feita utilizando a média de indivíduos infectados a partir de um único caso para diferentes valores de $\beta$ até que se encontre o valor que mais se aproxima ao desejado.
-É necessário também mudar os parâmetros que são específicos de cada cidade, são eles: tamanho da população, densidade populacional, contatos aleatórios, leitos de hospital e leitos de UTI. A Tabela \ref{tab:area} mostra as características de 4 cidades, São Paulo (SP), Manaus (AM), Brasilía (DF) e a favela da Rocinha (RJ).
+Para cada cidade a ser utilizada no modelo, a calibração da infecciosidade $\beta$ é necessária para que o valor de $R_0 = 3{,}5$ seja padrão em todas as cidades. É necessário também alterar os parâmetros que são específicos de cada cidade, são eles: tamanho da população, densidade populacional, contatos aleatórios, leitos de hospital e leitos de UTI. A Tabela \ref{tab:area} mostra as características de 4 cidades: São Paulo (SP), Manaus (AM), Brasília (DF) e a favela da Rocinha (RJ).
 
 
 \begin{table}[h]
@@ -613,22 +690,15 @@ $P_{(P\rightarrow A)}$ & Pré-sintomático para assintomático & 0.5  \\
 $P_{(P\rightarrow S_l)}$ & Pré-sintomático para sintomático leve & 0.6  \\
 $P_{(P\rightarrow S_m)}$ & Pré-sintomático para sintomático moderado & 0.2  \\
 $P_{(P\rightarrow S_s)}$ & Pré-sintomático para sintomático severo & 0.2  \\
-$P_{(S_l\rightarrow S_m)}$ & Sintomático leve para sintomático moderado& 0.1  \\
-$P_{(P\rightarrow A)}$ & Sintomático severo para hospitalização & 0.75  \\
-$P_{(P\rightarrow A)}$ & Internação em UTI & 0.25  \\
+$P_{(S_l\rightarrow S_m)}$ & Sintomático leve para sintomático moderado & 0.1  \\
+$P_{(S_s\rightarrow H)}$ & Sintomático severo para hospitalização & 0.75  \\
+$P_{(S_s\rightarrow UTI)}$ & Sintomático severo para internação em UTI & 0.25  \\
 
 \hline 
 
 \caption{Probabilidades de transição entre estados de saúde.} \label{tab:prob} \\
 \end{longtable}
 \end{center}
-
-\section{Implementação em CUDA}
-
-Para implemetação em CUDA mudanças nas redes serão necesárias para que o seu tamanho seja múltiplo de 32, e assim não causar divergência entre os warps. Como o modelo gera números aleatórios, em um programa em paralelo a função rand utilizada em C não é \textit{thread safe}, contudo CUDA oferece, através da biblioteca cuRAND, alguns pseudo geradores de números aleatórios. Com números aleatórios que sejam paralelizaveis e uma paralelização da rede de modo que as vizinhanças não sejam  desfeitas, uma paralelização do modelo baseado em agentes deve ser bem sucedida.
-
-
-
 
 \bibliographystyle{unsrt}
 \begin{thebibliography}{9}
