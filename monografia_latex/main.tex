@@ -723,6 +723,33 @@ $P_{(S_s\rightarrow UTI)}$ & Sintomático severo para internação em UTI & 0.25
 \end{longtable}
 \end{center}
 
+\section{Estratégia de paralelização e validação}
+
+A estratégia de paralelização adotada baseia-se no paralelismo de dados: uma vez que, a cada passo de tempo, todos os indivíduos da rede são processados de forma independente, associa-se uma thread a cada indivíduo, de modo que toda a rede é processada simultaneamente. A dinâmica da simulação é decomposta em kernels, um para cada estado de saúde, lançados em sequência a cada passo; como o lançamento de cada kernel funciona como um ponto de sincronização global, a ordem em que os estados são tratados na implementação serial é preservada. A geração de números aleatórios, por sua vez, é adaptada para a execução paralela, atribuindo-se um estado de gerador a cada thread. Em todas essas decisões, o princípio orientador é a preservação do comportamento do modelo, de modo que a implementação paralela reproduza os resultados da implementação serial.
+
+Para que a paralelização seja considerada bem-sucedida, não basta que seja mais rápida; é necessário que produza os mesmos resultados da implementação serial, tomada como referência. A validação é feita comparando-se as curvas epidêmicas obtidas pelas duas implementações sob os mesmos parâmetros --- mesma infecciosidade $\beta$, mesmo tamanho de rede e mesmo número de simulações ---, para cada uma das cidades modeladas. A concordância entre as curvas é quantificada pelo erro quadrático médio entre as proporções de cada estado ao longo do tempo, de modo que uma diferença pequena, compatível com a flutuação estatística do método de Monte Carlo, indica a equivalência entre as implementações.
+
+Confirmada a equivalência, avalia-se o ganho de desempenho da implementação paralela. A avaliação é feita medindo-se a aceleração, definida no Capítulo \ref{FT} como a razão entre o tempo de execução da implementação serial e o da implementação paralela, e a eficiência correspondente, para cada cidade. Como as cidades possuem tamanhos de rede distintos, essa avaliação permite ainda observar como o ganho de desempenho varia com o tamanho do problema. A Figura \ref{fig:estrategia} resume a estratégia do trabalho.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\small, >=Stealth,
+   bx/.style={draw, thick, rounded corners, align=center, minimum height=1cm, text width=3cm, fill=gray!8}]
+  \node[bx, fill=blue!10] (modelo) at (0,0) {Modelo\\ (Capítulo \ref{Met})};
+  \node[bx] (serial) at (-2.7,-2) {Implementação\\ serial (referência)};
+  \node[bx] (gpu) at (2.7,-2) {Implementação\\ em GPU};
+  \node[bx, fill=green!12] (valid) at (0,-4) {Validação\\ (mesmas curvas?)};
+  \node[bx, fill=orange!15] (bench) at (0,-5.7) {Benchmark\\ (aceleração, eficiência)};
+  \draw[->, thick] (modelo) -- (serial);
+  \draw[->, thick] (modelo) -- (gpu);
+  \draw[->, thick] (serial) -- (valid);
+  \draw[->, thick] (gpu) -- (valid);
+  \draw[->, thick] (valid) -- (bench);
+\end{tikzpicture}
+\caption{Estratégia do trabalho: o mesmo modelo é realizado em duas implementações; a implementação em GPU é validada contra a serial sob os mesmos parâmetros e, confirmada a equivalência, avalia-se o seu desempenho.}
+\label{fig:estrategia}
+\end{figure}
+
 \chapter{Implementação serial}
 \label{cap:serial}
 
