@@ -782,6 +782,43 @@ double aleat() {
 }
 \end{lstlisting}
 
+\section{Inicialização da população}
+
+Antes do início do laço de simulação, a função de inicialização prepara a população de acordo com o descrito no Capítulo \ref{Met}. Toda a rede é colocada no estado suscetível e, a cada indivíduo, é atribuída uma idade sorteada a partir da estrutura etária brasileira, bem como uma idade de morte natural obtida por amostragem por rejeição sobre as probabilidades de morte por faixa etária. Em seguida, os 5 casos iniciais são posicionados aleatoriamente na rede no estado pré-sintomático. A Listagem \ref{lst:begin} apresenta a estrutura dessa função.
+
+\begin{lstlisting}[caption={Inicialização da população (\texttt{beginfunc}).}, label={lst:begin}]
+void beginfunc() {
+    for (i = 1; i <= L; i++)
+      for (j = 1; j <= L; j++) {
+        Person[i][j].Health = S;            // toda a rede em suscetível
+
+        // sorteia a faixa etária pela estrutura etária e a idade na faixa
+        Person[i][j].AgeYears = rn * (MaximumAge - MinimumAge) + MinimumAge;
+        aleat();
+        Person[i][j].AgeDays  = rn * 365;
+
+        // idade de morte natural por amostragem por rejeição
+        do {
+            aleat(); Person[i][j].AgeDeathYears = rn * 100;
+            aleat();
+        } while (rn >= ProbNaturalDeath[Person[i][j].AgeDeathYears]);
+        Person[i][j].AgeDeathDays = Person[i][j].AgeDeathYears * 365;
+      }
+
+    // distribui os IPini = 5 casos iniciais em posições aleatórias
+    for (k = 0; k < IPini; ) {
+        aleat(); i = rn * L + 1;
+        aleat(); j = rn * L + 1;
+        if (Person[i][j].Health == S) {
+            Person[i][j].Health = IP;
+            aleat();
+            Person[i][j].StateTime = rn * (MaxIP - MinIP) + MinIP;
+            k++;
+        }
+    }
+}
+\end{lstlisting}
+
 \section{Laço de simulação e funções de estado}
 
 O laço principal segue o procedimento descrito no Algoritmo \ref{alg:simulacao}. Para cada simulação, a população é inicializada e, em seguida, a simulação avança dia a dia: a cada passo, as condições de contorno periódicas são aplicadas e a rede é percorrida sequencialmente, de modo que, para cada indivíduo, é chamada a função correspondente ao seu estado de saúde atual. Concluída a varredura, a rede é atualizada. A Listagem \ref{lst:loop} apresenta esse laço, no qual \texttt{estado\_IS}($\cdot$) abrevia o teste dos estados sintomáticos (IA, $S_l$, $S_m$ e $S_s$).
@@ -838,6 +875,8 @@ void IPfunc(int i, int j) {
     }
 }
 \end{lstlisting}
+
+As funções dos estados sintomático severo, hospitalizado e de UTI consideram ainda a disponibilidade de leitos: um indivíduo em estado severo só é hospitalizado se houver leito de hospital disponível, e a internação em UTI depende da disponibilidade de leitos de UTI. O número de leitos disponíveis em cada cidade desconta a ocupação inicial por outras doenças, conforme descrito no Capítulo \ref{Met}, e é controlado por contadores atualizados ao longo da simulação.
 
 \section{Implementação dos mecanismos de contágio}
 
