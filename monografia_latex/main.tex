@@ -64,6 +64,29 @@
 \pgfplotsset{compat=1.18}
 \usepackage{float}
 \usepackage[portuguese]{algorithm2e}
+\usepackage{listings}
+\definecolor{commentgray}{gray}{0.4}
+\lstset{
+  language=C,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries,
+  commentstyle=\itshape\color{commentgray},
+  numbers=none,
+  frame=single,
+  framerule=0.4pt,
+  breaklines=true,
+  showstringspaces=false,
+  captionpos=b,
+  xleftmargin=1em,
+  aboveskip=1.2em,
+  belowskip=1em,
+  literate=%
+    {á}{{\'a}}1 {à}{{\`a}}1 {â}{{\^a}}1 {ã}{{\~a}}1
+    {é}{{\'e}}1 {ê}{{\^e}}1 {í}{{\'i}}1
+    {ó}{{\'o}}1 {ô}{{\^o}}1 {õ}{{\~o}}1
+    {ú}{{\'u}}1 {ç}{{\c c}}1
+    {Á}{{\'A}}1 {É}{{\'E}}1
+}
 \usepackage{longtable}
 \usepackage{url}
 
@@ -699,6 +722,211 @@ $P_{(S_s\rightarrow UTI)}$ & Sintomático severo para internação em UTI & 0.25
 \caption{Probabilidades de transição entre estados de saúde.} \label{tab:prob} \\
 \end{longtable}
 \end{center}
+
+\chapter{Implementação serial}
+\label{cap:serial}
+
+A implementação serial do modelo, escrita na linguagem C, constitui a referência deste trabalho, uma vez que é contra os seus resultados que a implementação paralela será validada. Neste capítulo descreve-se como o modelo apresentado no Capítulo \ref{Met} é realizado como um programa sequencial, no qual um único processador percorre toda a rede a cada passo de tempo.
+
+\section{Estrutura de dados}
+
+Cada indivíduo da população é representado por uma estrutura que reúne o seu estado de saúde e os atributos necessários à evolução da doença, e a rede é representada por uma matriz dessas estruturas. A Listagem \ref{lst:struct} apresenta os principais campos dessa estrutura.
+
+\begin{lstlisting}[caption={Estrutura que representa cada indivíduo (agente).}, label={lst:struct}]
+struct Individual {
+    int Health;        // estado de saúde atual
+    int Swap;          // próximo estado (atualização síncrona)
+    int AgeYears;      // idade em anos
+    int AgeDays;       // idade em dias
+    int AgeDeathYears; // idade de morte natural (anos)
+    int AgeDeathDays;  // idade de morte natural (dias)
+    int StateTime;     // duração sorteada para o estado atual
+    int TimeOnState;   // tempo já decorrido no estado atual
+    int Days;          // dias do indivíduo na simulação
+    int Isolation;     // indicador de isolamento
+    int Exponent;      // tentativas de infecção no passo
+    int Checked;       // marca para evitar dupla infecção
+} Person[L+2][L+2];
+\end{lstlisting}
+
+O campo \texttt{Health} armazena o estado de saúde atual do indivíduo, enquanto o campo \texttt{Swap} armazena o estado para o qual ele transitará, mecanismo detalhado adiante. Os campos de idade guardam a idade atual e a idade de morte natural do indivíduo, e os campos \texttt{StateTime} e \texttt{TimeOnState} guardam, respectivamente, a duração sorteada para o estado atual e o tempo já decorrido nesse estado, de modo que a transição ocorre quando \texttt{TimeOnState} atinge \texttt{StateTime}. Por fim, os campos \texttt{Exponent} e \texttt{Checked} são utilizados no controle do contágio, evitando que um mesmo suscetível seja infectado mais de uma vez no mesmo passo.
+
+A rede é declarada como uma matriz \texttt{Person[L+2][L+2]}, na qual as duas linhas e as duas colunas adicionais formam uma borda que armazena cópias das extremidades opostas da rede, implementando as condições de contorno periódicas descritas no Capítulo \ref{Met}; dessa forma, ao verificar a vizinhança de um indivíduo da borda, o programa encontra automaticamente os vizinhos da borda oposta.
+
+A atualização da rede é feita de forma síncrona por meio de um duplo-buffer, no qual os campos \texttt{Health} e \texttt{Swap} desempenham papéis complementares. Durante a varredura da rede, as funções de estado leem o estado atual de cada indivíduo em \texttt{Health} e escrevem o seu próximo estado em \texttt{Swap}, sem alterar \texttt{Health}; somente ao final do passo o conteúdo de \texttt{Swap} é copiado para \texttt{Health}. Assim, garante-se que a atualização de um indivíduo não interfira no cálculo dos demais no mesmo passo, conforme ilustra a Figura \ref{fig:duplobuffer}.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\small, >=Stealth]
+  \node[draw, thick, fill=blue!10, minimum width=4.8cm, minimum height=0.9cm] (health) at (0,1.5) {\texttt{Health} --- estado atual};
+  \node[draw, thick, fill=green!12, minimum width=4.8cm, minimum height=0.9cm] (swap) at (0,-1.5) {\texttt{Swap} --- próximo estado};
+  \node[draw, thick, rounded corners, fill=gray!10, align=center, text width=3.1cm, minimum height=1.4cm] (func) at (6.4,0) {funções de estado\\ (\texttt{Sfunc}, \texttt{IPfunc}, \dots)};
+  \draw[->, thick] (health.east) -- (func.north west) node[midway, above, sloped, font=\scriptsize]{lê};
+  \draw[->, thick] (func.south west) -- (swap.east) node[midway, below, sloped, font=\scriptsize]{escreve};
+  \draw[->, very thick, dashed] (swap.west) -- ++(-1.8,0) |- (health.west) node[pos=0.5, left, align=center, font=\scriptsize]{atualização\\ síncrona};
+\end{tikzpicture}
+\caption{Duplo-buffer da atualização síncrona. Durante a varredura, as funções de estado leem o estado atual em \texttt{Health} e escrevem o próximo estado em \texttt{Swap}; ao final do passo, \texttt{Swap} é copiado para \texttt{Health}, de modo que todas as transições de um passo são aplicadas simultaneamente.}
+\label{fig:duplobuffer}
+\end{figure}
+
+\section{Organização do programa e geração de números aleatórios}
+
+O programa é organizado de forma modular, no qual o arquivo principal contém o laço de simulação e inclui diversos arquivos auxiliares, cada um responsável por uma parte do modelo: a inicialização da população, os parâmetros de cada cidade, as probabilidades de morte natural e de recuperação por faixa etária, os dois mecanismos de contágio e as funções de estado. Cada estado de saúde possui a sua própria função, o que mantém o código legível e preserva a correspondência direta entre o modelo e a sua implementação.
+
+Como o modelo é estocástico, a geração de números aleatórios é parte essencial da implementação. Utiliza-se um gerador congruencial linear multiplicativo, apresentado na Listagem \ref{lst:rng}, no qual o estado do gerador é multiplicado por uma constante a cada chamada e normalizado para o intervalo $[0,1]$. A cada simulação o gerador é inicializado com uma semente distinta, derivada do número da simulação, de modo que cada simulação produz uma sequência própria de números pseudoaleatórios e, ao mesmo tempo, os resultados permanecem reprodutíveis.
+
+\begin{lstlisting}[caption={Gerador congruencial linear multiplicativo.}, label={lst:rng}]
+double aleat() {
+    R *= mult;                // mult = 888121
+    rn = (double) R / MAXNUM; // número em [0, 1]
+}
+\end{lstlisting}
+
+\section{Laço de simulação e funções de estado}
+
+O laço principal segue o procedimento descrito no Algoritmo \ref{alg:simulacao}. Para cada simulação, a população é inicializada e, em seguida, a simulação avança dia a dia: a cada passo, as condições de contorno periódicas são aplicadas e a rede é percorrida sequencialmente, de modo que, para cada indivíduo, é chamada a função correspondente ao seu estado de saúde atual. Concluída a varredura, a rede é atualizada. A Listagem \ref{lst:loop} apresenta esse laço, no qual \texttt{estado\_IS}($\cdot$) abrevia o teste dos estados sintomáticos (IA, $S_l$, $S_m$ e $S_s$).
+
+\begin{lstlisting}[caption={Laço principal: contorno periódico, varredura e atualização.}, label={lst:loop}]
+for (sim_time = 0; sim_time <= DAYS; sim_time++) {
+    // condições de contorno periódicas (bordas e cantos)
+    for (i = 1; i <= L; i++) {
+        Person[0][i].Health   = Person[L][i].Health;
+        Person[L+1][i].Health = Person[1][i].Health;
+        Person[i][0].Health   = Person[i][L].Health;
+        Person[i][L+1].Health = Person[i][1].Health;
+    }
+
+    // varredura da rede: despacho por estado de saúde
+    for (i = 1; i <= L; i++)
+      for (j = 1; j <= L; j++)
+        if      (Person[i][j].Health == S)   Sfunc(i, j);
+        else if (Person[i][j].Health == E)   Efunc(i, j);
+        else if (Person[i][j].Health == IP)  IPfunc(i, j);
+        else if (estado_IS(Person[i][j].Health)) ISfunc(i, j);
+        else if (Person[i][j].Health == H)   Hfunc(i, j);
+        else if (Person[i][j].Health == ICU) ICUfunc(i, j);
+
+    Updatefunc();   // atualização síncrona
+}
+\end{lstlisting}
+
+Cada função de estado segue uma estrutura semelhante: incrementa o tempo decorrido no estado, verifica se o indivíduo sofreu morte natural e, caso contrário, decide a sua permanência ou transição. Enquanto o tempo decorrido não atinge a duração sorteada, o indivíduo permanece no mesmo estado; ao atingi-la, a função sorteia o próximo estado de acordo com as probabilidades de transição e, quando aplicável, com a probabilidade de recuperação correspondente à sua faixa etária, escrevendo o resultado no campo \texttt{Swap}. As funções dos estados infecciosos que ainda circulam na população acrescentam, enquanto o indivíduo permanece infeccioso, a chamada ao segundo mecanismo de contágio, descrito a seguir. A Listagem \ref{lst:ipfunc} ilustra essa estrutura para o estado pré-sintomático.
+
+\begin{lstlisting}[caption={Função de estado do pré-sintomático (\texttt{IPfunc}).}, label={lst:ipfunc}]
+void IPfunc(int i, int j) {
+    Person[i][j].TimeOnState++;
+
+    if (Person[i][j].Days >= Person[i][j].AgeDeathDays) {   // morte natural
+        Person[i][j].Swap = Dead;
+        New_Dead++;
+    }
+    else if (Person[i][j].TimeOnState >= Person[i][j].StateTime) {
+        // duração do estado terminou: sorteia o próximo estado
+        aleat();
+        if (rn < ProbIPtoIA) {
+            Person[i][j].Swap = IA;
+            aleat();
+            Person[i][j].StateTime = rn * (MaxIA - MinIA) + MinIA;
+        } else {
+            // sorteia ISLight / ISModerate / ISSevere conforme as probabilidades
+            // ...
+        }
+    }
+    else {                            // ainda infeccioso
+        Neighborsinfectedfunc(i, j);  // segundo mecanismo de contágio
+        Person[i][j].Swap = IP;
+    }
+}
+\end{lstlisting}
+
+\section{Implementação dos mecanismos de contágio}
+
+O primeiro mecanismo de contágio é realizado pela função associada ao estado suscetível, que percorre a vizinhança local do indivíduo --- de Moore para as cidades de alta densidade e de Von Neumann para as de baixa densidade --- e os seus contatos aleatórios, contando o número $n$ de indivíduos infectados encontrados. A partir desse número, calcula-se a probabilidade de contágio $P = 1 - (1 - \beta)^n$ e, com um número aleatório, decide-se se o suscetível é infectado, caso em que ele transita para o estado exposto. A Listagem \ref{lst:neighbors} apresenta esse mecanismo, no qual \texttt{infeccioso}($\cdot$) denota o teste de o indivíduo estar em um estado infeccioso.
+
+\begin{lstlisting}[caption={Primeiro mecanismo: o suscetível busca infectados (\texttt{Neighborsfunc}).}, label={lst:neighbors}]
+int Neighborsfunc(int i, int j) {
+    int KI = 0;            // número de infectados encontrados
+    Contagion = 0;
+
+    if (Person[i][j].Isolation == IsolationNo) {   // contatos aleatórios
+        aleat();
+        RandomContacts = rn * (MaxRandomContacts - MinRandomContacts) + MinRandomContacts;
+        for (mute = 0; mute < RandomContacts; mute++) {
+            // sorteia um contato (Randomi, Randomj)
+            if (infeccioso(Randomi, Randomj)) KI++;
+        }
+    }
+
+#if (Density == HIGH)              // vizinhança de Moore (8 vizinhos)
+    for (k = -1; k <= 1; k++)
+      for (l = -1; l <= 1; l++)
+        if (infeccioso(i + k, j + l)) KI++;
+#else                              // vizinhança de Von Neumann (4 vizinhos)
+    if (infeccioso(i-1,j) || infeccioso(i+1,j) ||
+        infeccioso(i,j-1) || infeccioso(i,j+1)) KI++;
+#endif
+
+    if (KI > 0) {                  // P = 1 - (1 - Beta)^KI
+        ProbContagion = 1.0 - pow(1.0 - Beta, (double) KI);
+        aleat();
+        if (rn <= ProbContagion) Contagion = 1;
+    }
+    return Contagion;
+}
+\end{lstlisting}
+
+O segundo mecanismo é realizado pelos indivíduos infecciosos que ainda circulam na população, que procuram indivíduos suscetíveis entre seus contatos aleatórios e tentam infectá-los. Para garantir a consistência com a atualização síncrona e evitar que um mesmo suscetível seja infectado duas vezes no mesmo passo, cada suscetível dispõe dos campos \texttt{Exponent} e \texttt{Checked}: o primeiro contabiliza as tentativas de infecção dirigidas àquele indivíduo no passo, enquanto o segundo marca o indivíduo já processado, de modo que a infecção é aplicada uma única vez por passo, independentemente de ter origem na busca do próprio suscetível ou na de um infectado. A Listagem \ref{lst:neighborsinf} apresenta esse mecanismo.
+
+\begin{lstlisting}[caption={Segundo mecanismo: o infectado busca suscetíveis (\texttt{Neighborsinfectedfunc}).}, label={lst:neighborsinf}]
+void Neighborsinfectedfunc(int i, int j) {
+    if (Person[i][j].Isolation == IsolationNo) {
+        aleat();
+        RandomContacts = rn * (MaxRandomContacts - MinRandomContacts) + MinRandomContacts;
+        for (mute = 0; mute < RandomContacts; mute++) {
+            // sorteia um suscetível-alvo (Randomi, Randomj)
+            if (Person[Randomi][Randomj].Health == S)
+                Person[Randomi][Randomj].Exponent++;
+
+            if (Person[Randomi][Randomj].Checked == 0 &&
+                Person[Randomi][Randomj].Exponent == 1) {
+                ProbContagion = 1.0 - pow(1.0 - Beta, (double) Person[Randomi][Randomj].Exponent);
+                aleat();
+                if (rn <= ProbContagion) {
+                    Person[Randomi][Randomj].Checked = 1;
+                    Person[Randomi][Randomj].Swap = E;
+                    Person[Randomi][Randomj].TimeOnState = 0;
+                    aleat();
+                    Person[Randomi][Randomj].StateTime = rn * (MaxLatency - MinLatency) + MinLatency;
+                }
+            }
+        }
+    }
+}
+\end{lstlisting}
+
+\section{Atualização síncrona e geração das saídas}
+
+Ao final de cada passo de tempo, a função de atualização copia o campo \texttt{Swap} para o campo \texttt{Health} de todos os indivíduos, efetivando de forma síncrona as transições calculadas durante a varredura, e incrementa os contadores de idade e de tempo de simulação. Em seguida, contabiliza-se quantos indivíduos se encontram em cada estado de saúde, e os indivíduos que atingiram a sua idade de morte natural são removidos e substituídos por novos suscetíveis, com idade sorteada novamente a partir da estrutura etária, de modo que o tamanho total da população permanece constante. A Listagem \ref{lst:update} apresenta o trecho central dessa atualização.
+
+\begin{lstlisting}[caption={Atualização síncrona e substituição dos mortos (\texttt{Updatefunc}).}, label={lst:update}]
+for (i = 1; i <= L; i++)
+  for (j = 1; j <= L; j++) {
+    Person[i][j].Health = Person[i][j].Swap;   // atualização síncrona
+    Person[i][j].Exponent = 0;
+    Person[i][j].Checked  = 0;
+    Person[i][j].AgeDays++;
+    Person[i][j].Days++;
+
+    if (Person[i][j].Health == Dead || Person[i][j].Health == DeadCovid) {
+        Person[i][j].Health = S;                // novo suscetível
+        aleat();
+        Person[i][j].AgeYears = rn * 100;       // idade reamostrada
+        // ... sorteia a idade de morte natural (amostragem por rejeição)
+    }
+  }
+\end{lstlisting}
+
+Os resultados são registrados em dois níveis. Para cada simulação, a prevalência e a incidência de cada estado de saúde são gravadas, a cada dia, em arquivos próprios. Ao final de todas as simulações, calcula-se a média das curvas sobre as \texttt{MAXSIM} simulações, obtendo-se, pelo método de Monte Carlo, as curvas médias de prevalência e de incidência que representam a evolução esperada da epidemia.
 
 \bibliographystyle{unsrt}
 \begin{thebibliography}{9}
