@@ -967,6 +967,203 @@ for (i = 1; i <= L; i++)
 
 Os resultados são registrados em dois níveis. Para cada simulação, a prevalência e a incidência de cada estado de saúde são gravadas, a cada dia, em arquivos próprios. Ao final de todas as simulações, calcula-se a média das curvas sobre as \texttt{MAXSIM} simulações, obtendo-se, pelo método de Monte Carlo, as curvas médias de prevalência e de incidência que representam a evolução esperada da epidemia.
 
+\chapter{Implementação em GPU}
+\label{cap:gpu}
+
+A implementação paralela do modelo em CUDA constitui a principal contribuição deste trabalho. O mesmo modelo descrito no Capítulo \ref{Met} e a mesma lógica da implementação serial são reorganizados de modo que a rede seja processada em paralelo, com uma thread responsável por cada indivíduo. O desafio central é preservar o comportamento do modelo --- e, portanto, a equivalência com o serial --- ao mesmo tempo em que se explora o paralelismo da GPU.
+
+\section{Mapeamento da rede em threads}
+
+Na implementação serial, um único processador percorre a rede com dois laços encaixados e, para cada indivíduo, despacha a função correspondente ao seu estado. Na GPU, esse percurso sequencial dá lugar ao paralelismo: a cada indivíduo é associada uma thread, de modo que toda a rede é processada simultaneamente. Como a rede possui $(L+2)^2$ posições, são lançadas $(L+2)^2$ threads, organizadas em blocos de tamanho fixo; cada thread identifica a sua posição a partir dos índices nativos de CUDA e converte esse índice linear na posição $(i, j)$ da matriz, ignorando as células da borda. A Listagem \ref{lst:idx} apresenta as funções de conversão entre o índice da thread e a posição na rede.
+
+\begin{lstlisting}[caption={Conversão entre o índice da thread e a posição na rede.}, label={lst:idx}]
+__host__ __device__ int to1D(int i, int j, int L) {
+    return i * (L + 2) + j;
+}
+__host__ __device__ void to2D(int idx, int L, int &i, int &j) {
+    i = idx / (L + 2);
+    j = idx % (L + 2);
+}
+\end{lstlisting}
+
+Outra diferença em relação ao serial está no tratamento dos estados de saúde. Em vez de uma única varredura com um despacho condicional, cada estado possui o seu próprio kernel, lançado sobre toda a rede: cada thread verifica se o seu indivíduo se encontra no estado tratado por aquele kernel e, em caso afirmativo, aplica a regra correspondente. Os kernels de estado são lançados em sequência a cada dia --- contorno, S, E, IP, IS, H, UTI e atualização ---; uma vez que o lançamento de cada kernel é um ponto de sincronização global, a ordem das funções de estado do serial é preservada, o que é essencial para a equivalência entre as implementações.
+
+\section{Estrutura de dados na GPU}
+
+Cada indivíduo é representado na GPU por uma estrutura análoga à do serial, alinhada em 16 bytes para favorecer o acesso à memória, e a rede é armazenada como um vetor dessas estruturas na memória global do \textit{device}. Os parâmetros do modelo --- a infecciosidade, os parâmetros de cada cidade, as durações dos estados e os códigos dos estados de saúde --- são armazenados em memória constante, apropriada para dados apenas de leitura que são acessados por todas as threads. A Listagem \ref{lst:gpustruct} apresenta a estrutura e alguns desses parâmetros.
+
+\begin{lstlisting}[caption={Estrutura do indivíduo e parâmetros em memória constante.}, label={lst:gpustruct}]
+struct __align__(16) GPUPerson {
+    int Health, Swap, Gender;
+    int AgeYears, AgeDays, AgeDeathYears, AgeDeathDays;
+    int StateTime, TimeOnState, Days;
+    int Isolation, Exponent, Checked;
+};
+
+// parâmetros e códigos de estado em memória constante
+__constant__ double d_Beta;
+__constant__ int    d_Density;
+__constant__ double d_MaxRandomContacts, d_MinRandomContacts;
+__constant__ int    d_S, d_E, d_IP, d_IA, d_ISLight, d_ISModerate, d_ISSevere;
+
+// vetor compacto de Health (1 byte por célula)
+__device__ unsigned char* d_HealthC;
+\end{lstlisting}
+
+\subsection{Otimização da estrutura de Health}
+
+Os mecanismos de contágio percorrem, para cada indivíduo, diversos contatos aleatórios espalhados pela rede, lendo de cada um apenas o seu estado de saúde. Como cada estrutura completa ocupa aproximadamente 52 bytes, esses acessos aleatórios a posições distantes da memória são pouco eficientes e, para redes grandes, ultrapassam a capacidade da cache. Para contornar essa limitação, mantém-se um vetor compacto que replica apenas o campo de estado de saúde, com um byte por célula, conforme ilustra a Figura \ref{fig:healthsoa}. Os mecanismos de contágio leem desse vetor compacto, de modo que o conjunto de dados percorrido pelos acessos aleatórios é pequeno o suficiente para permanecer na cache L2 (Capítulo \ref{FT}), o que reduz o tempo gasto com acesso à memória, fator determinante para o desempenho. O vetor compacto é mantido sincronizado com o estado de saúde ao final de cada atualização.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\small, >=Stealth]
+  \foreach \x in {0,1,2,3} {
+    \node[draw, thick, fill=blue!10, minimum width=2.1cm, minimum height=1.0cm, align=center, font=\scriptsize] (p\x) at (\x*2.3,0) {\texttt{Health}, \texttt{Swap},\\ idade, \texttt{StateTime},\\ \dots};
+    \node[draw, fill=orange!45, minimum width=0.55cm, minimum height=0.55cm, font=\scriptsize] (c\x) at (\x*2.3,-2.3) {H};
+    \draw[->, thick, gray] (p\x.south) -- (c\x.north);
+  }
+  \node[anchor=west, font=\footnotesize] at (-1.15,1.05) {\texttt{population[]}: \texttt{GPUPerson} com 13 campos ($\approx$ 52 bytes/célula)};
+  \node[anchor=west, font=\footnotesize] at (-1.15,-3.1) {\texttt{d\_HealthC[]}: apenas \texttt{Health} (1 byte/célula) --- cabe na cache L2};
+\end{tikzpicture}
+\caption{Otimização da estrutura de Health. O vetor completo \texttt{population[]} armazena todos os campos de cada indivíduo; o vetor compacto \texttt{d\_HealthC[]} replica apenas o campo \texttt{Health}, de modo que os acessos aleatórios dos mecanismos de contágio percorrem um vetor pequeno o suficiente para permanecer na cache L2.}
+\label{fig:healthsoa}
+\end{figure}
+
+\section{Geração de números aleatórios thread-safe}
+
+A geração de números aleatórios do serial utiliza um único estado global, avançado a cada chamada, o que é incompatível com a execução paralela, uma vez que diversas threads o acessariam simultaneamente, introduzindo condições de corrida. Na implementação em GPU, mantém-se um vetor de estados, um por thread, e cada thread avança apenas o seu próprio estado, utilizando o mesmo gerador congruencial linear multiplicativo do serial. Cada estado é inicializado com uma semente própria, derivada do índice da thread, de modo que as threads produzem sequências independentes, sem condições de corrida, e os resultados permanecem reprodutíveis. A Listagem \ref{lst:gpurng} apresenta o gerador e a sua inicialização.
+
+\begin{lstlisting}[caption={Gerador de números aleatórios por thread.}, label={lst:gpurng}]
+__device__ double generateRandom(unsigned int* state) {
+    unsigned long long t = (unsigned long long)(*state) * 888121ULL;
+    *state = (unsigned int)(t & 0xFFFFFFFF);   // mantém 32 bits, como no serial
+    return (double)(*state) / 4294967295.0;
+}
+
+__global__ void initRNG(unsigned int* states, unsigned int seed, int size) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size)
+        states[idx] = seed * (idx + 1);        // semente única por thread
+}
+\end{lstlisting}
+
+\section{Inicialização e laço de simulação}
+
+A orquestração da simulação é feita pelo \textit{host}, que aloca a memória do \textit{device}, executa o laço sobre as simulações e, em cada simulação, inicializa os estados do gerador, a população e os casos iniciais. A inicialização da população é realizada em paralelo por um kernel, no qual cada thread coloca o seu indivíduo no estado suscetível e sorteia a sua idade e a sua idade de morte natural, e os 5 casos iniciais são posicionados em seguida. A cada dia, o \textit{host} lança a sequência de kernels que constitui um passo da simulação, conforme apresenta a Listagem \ref{lst:rundia}. Ao final de todas as simulações, os contadores são copiados do \textit{device} para o \textit{host}, que calcula a média das curvas sobre as simulações, do mesmo modo que na implementação serial.
+
+\begin{lstlisting}[caption={Sequência de kernels lançada a cada dia.}, label={lst:rundia}]
+void runSimulationDay(GPUPerson* d_pop, unsigned int* d_rng,
+                      int L, int day, int blockSize, int numBlocks) {
+    updateBoundaries_kernel <<<numBlocks, blockSize>>> (d_pop, L);
+    S_kernel   <<<numBlocks, blockSize>>> (d_pop, d_rng, L);
+    E_kernel   <<<numBlocks, blockSize>>> (d_pop, d_rng, L);
+    IP_kernel  <<<numBlocks, blockSize>>> (d_pop, d_rng, L);
+    IS_kernel  <<<numBlocks, blockSize>>> (d_pop, d_rng, L);
+    H_kernel   <<<numBlocks, blockSize>>> (d_pop, d_rng, L);
+    ICU_kernel <<<numBlocks, blockSize>>> (d_pop, d_rng, L);
+    update_kernel <<<numBlocks, blockSize>>> (d_pop, d_rng, L, day, d_ProbNaturalDeath);
+}
+\end{lstlisting}
+
+\section{Mecanismos de contágio em paralelo}
+
+O primeiro mecanismo é realizado pelo kernel do estado suscetível: cada thread cujo indivíduo é suscetível verifica a sua vizinhança e os seus contatos aleatórios, conta os infectados encontrados e, a partir da probabilidade de contágio, decide se o indivíduo passa ao estado exposto. A Listagem \ref{lst:skernel} apresenta esse kernel.
+
+\begin{lstlisting}[caption={Primeiro mecanismo: kernel do estado suscetível.}, label={lst:skernel}]
+__global__ void S_kernel(GPUPerson* population, unsigned int* rngStates, int L) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= (L + 2) * (L + 2)) return;
+
+    int i, j;
+    to2D(idx, L, i, j);
+    if (i < 1 || i > L || j < 1 || j > L) return;   // ignora a borda
+
+    int p = to1D(i, j, L);
+    if (population[p].Health != d_S) return;
+
+    if (population[p].Days >= population[p].AgeDeathDays) {   // morte natural
+        population[p].Swap = d_Dead;
+        return;
+    }
+    // busca infectados na vizinhança e nos contatos aleatórios
+    ContactResult c = checkAllContacts(i, j, L, population, &rngStates[idx]);
+    if (c.anyContact &&
+        generateRandom(&rngStates[idx]) <= calculateInfectionProbability(c.infectiousContacts)) {
+        population[p].Checked = 1;
+        population[p].Swap = d_E;
+        population[p].TimeOnState = 0;
+        population[p].StateTime =
+            generateRandom(&rngStates[idx]) * (d_MaxLatency - d_MinLatency) + d_MinLatency;
+    } else {
+        population[p].Swap = d_S;
+    }
+}
+\end{lstlisting}
+
+O segundo mecanismo é realizado por uma função executada pelos kernels dos estados pré-sintomático, assintomático e sintomático leve, enquanto o indivíduo permanece infeccioso: a função sorteia contatos aleatórios e tenta infectar os suscetíveis encontrados. Aqui surge o principal cuidado da paralelização: como diversas threads de indivíduos infectados podem mirar o mesmo suscetível simultaneamente, o incremento simples do campo \texttt{Exponent} usado no serial é substituído por uma operação atômica, que garante que exatamente uma dessas threads efetive a infecção. A Listagem \ref{lst:spread} apresenta essa função.
+
+\begin{lstlisting}[caption={Segundo mecanismo: deduplicação concorrente por operação atômica.}, label={lst:spread}]
+__device__ void spreadInfection_kernel(int i, int j, GPUPerson* population,
+                                       unsigned int* rngState, int L) {
+    double rn = generateRandom(rngState);
+    int randomContacts = rn * (d_MaxRandomContacts - d_MinRandomContacts) + d_MinRandomContacts;
+
+    for (int c = 0; c < randomContacts; c++) {
+        int Randomi = (int)(generateRandom(rngState) * L) + 1;   // sorteia um alvo
+        int Randomj = (int)(generateRandom(rngState) * L) + 1;
+        int r = to1D(Randomi, Randomj, L);
+
+        if (d_HealthC[r] == d_S) {
+            // deduplicação concorrente: incremento atômico de Exponent
+            int oldval = atomicAdd(&population[r].Exponent, 1);
+            if (population[r].Checked == 0 && oldval == 0) {
+                double P = 1.0 - pow(1.0 - d_Beta, (double)(oldval + 1));
+                if (generateRandom(rngState) <= P) {
+                    population[r].Checked = 1;
+                    population[r].Swap = d_E;
+                    population[r].TimeOnState = 0;
+                    population[r].StateTime =
+                        generateRandom(rngState) * (d_MaxLatency - d_MinLatency) + d_MinLatency;
+                }
+            }
+        }
+    }
+}
+\end{lstlisting}
+
+\section{Atualização e contadores}
+
+A atualização é realizada por um kernel no qual cada thread copia o campo \texttt{Swap} para o campo \texttt{Health} do seu indivíduo, incrementa os contadores de idade e, quando o indivíduo sofreu morte natural, substitui-o por um novo suscetível com idade reamostrada, de modo análogo ao serial. Ao final, cada thread mantém o vetor compacto de Health sincronizado. A contagem da prevalência e da incidência de cada estado, que no serial é feita por um laço sequencial, na GPU é realizada por operações atômicas sobre contadores no \textit{device}, uma vez que todas as threads escrevem nesses contadores simultaneamente; os contadores são então copiados para o \textit{host}. A Listagem \ref{lst:updatekernel} apresenta o trecho central desse kernel.
+
+\begin{lstlisting}[caption={Atualização síncrona, substituição e contagem por operações atômicas.}, label={lst:updatekernel}]
+__global__ void update_kernel(GPUPerson* population, unsigned int* rngStates,
+                              int L, int day, double* probNaturalDeath) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= (L + 2) * (L + 2)) return;
+    int i, j; to2D(idx, L, i, j);
+    if (i < 1 || i > L || j < 1 || j > L) return;
+    int p = to1D(i, j, L);
+
+    population[p].Health = population[p].Swap;   // atualização síncrona
+    population[p].AgeDays++;
+    population[p].Days++;
+
+    // morte natural: substitui por um novo suscetível
+    if (population[p].Health == d_Dead || population[p].Health == d_DeadCovid)
+        replaceDeadPerson(&population[p], &rngStates[idx], probNaturalDeath);
+
+    // contagem da prevalência por operações atômicas
+    int s = population[p].Health;
+    if      (s == d_S) atomicAdd(&d_S_Total, 1);
+    else if (s == d_E) atomicAdd(&d_E_Total, 1);
+    // ... demais estados
+
+    population[p].Exponent = 0;
+    population[p].Checked  = 0;
+    d_HealthC[p] = (unsigned char) s;   // mantém o vetor compacto sincronizado
+}
+\end{lstlisting}
+
 \bibliographystyle{unsrt}
 \begin{thebibliography}{9}
 
