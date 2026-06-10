@@ -1,0 +1,86 @@
+\chapter{Capítilo 3}
+
+
+\lipsum[9-14]
+
+
+A figura \ref{fig:rainflow} mostra o método de contagem de ciclos Rainflow...
+
+
+
+\begin{figure}[!h]
+    \centering
+	\caption{Exemplificação do método Rainflow} \label{fig:rainflow}
+	\includegraphics[width=0.5\linewidth]{Figures/Rainflow.png}
+	%\legend{Texto da legenda. (opcional)}
+	\source{Citação da fonte ou `O autor' (opcional)}
+\end{figure}
+
+\lipsum[15-17]
+
+Texto da primeira subseção. Figura \ref{fig:rotulo}\subref{subfig:rotulo2}.
+
+
+\begin{figure}[!h]
+    \centering
+	\caption{Histogramas de contagem de ciclos para diferentes métodos e diferentes fatores de irregularidade.} \label{fig:rotulo}
+	\subfloat[][Legenda a...]{\label{subfig:rotulo1}
+		\includegraphics[width=0.45\linewidth]{Figures/Comparison_in_same_plot025.png}}
+	\subfloat[][Legenda b...]{\label{subfig:rotulo2}
+		\includegraphics[width=0.45\linewidth]{Figures/Comparison_in_same_plot055.png}}\\
+	\subfloat[][Legenda c...]{\label{subfig:rotulo3}
+		\includegraphics[width=0.45\linewidth]{Figures/Comparison_in_same_plot074.png}}
+	\subfloat[][Legenda d...]{\label{subfig:rotulo4}
+		\includegraphics[width=0.45\linewidth]{Figures/Comparison_in_same_plot099.png}}
+	%\legend{Texto da legenda (opcional)}
+	\source{Citação da fonte ou `O autor'. (opcional)}
+\end{figure}
+
+\lipsum[18]
+
+
+Texto da primeira subsubseção. Tabela \ref{tab:rotulo2}.
+
+\begin{table}[!ht]
+	\centering
+	\caption{Propriedades estatísticas no domínio do tempo e da frequência.}
+	\label{tab:rotulo2}
+	\begin{tabular}{c|c|c|c}
+        \hline
+		\textbf{Irregularity Factor} & \textbf{Property}           & \textbf{Frequency-domain} & \textbf{Time-domain} \\ \hline
+\multirow{4}{*}{0.30}   & $\sigma_{X}$        & 43.3                 & 43.2 \\
+             & $\sigma_{\dot{X}}$ & 7251.3                 & 7168.8         \\
+             &   $\nu_{0}$   & 27                 & 25         \\
+             & $\nu_{p}$               & 88                 & 90         \\ \hline
+\multirow{4}{*}{0.58}   & $\sigma_{X}$        & 44.7                 & 44.6 \\
+             & $\sigma_{\dot{X}}$ & 4842.7                 & 4832.1         \\
+             &   $\nu_{0}$   & 17                 & 17         \\
+             & $\nu_{p}$               & 30                 & 24         \\ \hline
+\multirow{4}{*}{0.78}   & $\sigma_{X}$        & 30.3                 & 30.3 \\
+             & $\sigma_{\dot{X}}$ & 35950.6                 & 32608.3         \\
+             &   $\nu_{0}$   & 189                 & 181         \\
+             & $\nu_{p}$               & 243                 & 230         \\ \hline
+	\multirow{4}{*}{0.94}   & $\sigma_{X}$        & 32.0                 & 32.1 \\
+             & $\sigma_{\dot{X}}$ & 16680.5                 & 16521.7         \\
+             &   $\nu_{0}$   & 83                 & 84         \\
+             & $\nu_{p}$               & 88                 & 90
+	\end{tabular}
+	\source{Citação da fonte ou `O autor'. (opcional)}
+\end{table}
+
+\lipsum[19-21]
+
+\begin{landscape}
+	\begin{figure}[!h] 
+    \centering
+	\caption{Exemplo de Página em landscape} \label{outro.rotulo2}
+    %\hspace*{-6cm}
+	\subfloat[][Legenda a...]{\label{subrotulo5}
+		\fbox{\includegraphics[width=0.5\linewidth]{Figures/fatigue-history099.png}}}
+	\subfloat[][Legenda b...]{\label{subrotulo6}
+		\fbox{\includegraphics[width=0.5\linewidth]{Figures/PSD099.png}}}
+	%\legend{Texto da legenda (opcional)}
+	\source{Citação da fonte ou `O autor'. (opcional)}
+	\end{figure}
+\end{landscape}
+

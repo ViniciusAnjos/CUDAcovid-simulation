@@ -1,0 +1,789 @@
+\NeedsTeXFormat{LaTeX2e}
+
+\ProvidesPackage{EEIMVRformat}[2015/14/12 v8.0 EEIMVRformat.sty]
+
+\RequirePackage{ifthen}
+\RequirePackage{enumitem}
+\RequirePackage{calc}
+\RequirePackage{pifont}
+\RequirePackage{keyval}
+\RequirePackage{lastpage}
+\RequirePackage{changepage} %\begin{adjustwidth}
+
+
+% pacotes uteis para diagramacao da pagina
+\RequirePackage{geometry}
+\RequirePackage{eso-pic}
+%\RequirePackage[noframe]{showframe}
+
+\RequirePackage[english,brazil]{babel}  % adequação para o português Brasil
+\RequirePackage[utf8]{inputenc} % Determina a codificação utilizada
+                            % (conversão automática dos acentos)
+\RequirePackage{makeidx}        % Cria o índice
+\RequirePackage[
+  colorlinks=true,            % false: boxed links; true: colored links
+  linkcolor=black,            % color of internal links blue
+  citecolor=black,            % color of links to bibliography blue
+  filecolor=black,            % color of file links magenta
+  urlcolor=black,
+  bookmarksdepth=4,
+  %backref=true,
+  %pagebackref=true,
+  %bookmarks=true,
+]{hyperref}       % Controla a formação do índice
+\RequirePackage{indentfirst}    % Endenta o primeiro paragrafo de
+                            % cada seção.
+\RequirePackage{graphicx}       % Inclusão de gráficos
+\RequirePackage{subfig}
+\RequirePackage{amsmath}        % pacote matemático
+\RequirePackage{bm}             % pacote de fontes matematicas
+\RequirePackage{lscape}         % pacote para colocar páginas em landscape
+\RequirePackage{array}
+\RequirePackage{color,colortbl,multirow}
+
+\selectlanguage{brazil} % setando o idioma global para português
+
+\setlength{\headheight}{6pt}% ...at least 14.9999pt
+
+% \RequirePackage{amsmath}
+% % \setlength{\mathindent}{\parindent}
+% \setlength{\mathindent}{0pt}
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+\newboolean{UFFshowframe}
+\setboolean{UFFshowframe}{false}
+\DeclareOption{frame=yes}  {\setboolean{UFFshowframe}{true}}
+\DeclareOption{frame=no}   {\setboolean{UFFshowframe}{false}}
+
+\newboolean{flaga}\setboolean{flaga}{false}
+\newboolean{flagb}\setboolean{flagb}{false}
+
+\DeclareOption{font=times}     {\setboolean{flaga}{true}\setboolean{flagb}{false}}
+\DeclareOption{font=sans}      {\setboolean{flaga}{false}\setboolean{flagb}{true}}
+\DeclareOption{font=default}   {\setboolean{flaga}{false}\setboolean{flagb}{false}}
+\DeclareOption{font=lmodern}   {\setboolean{flaga}{true}\setboolean{flagb}{true}}
+
+\ProcessOptions
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+\ifthenelse{\boolean{flaga}\and\not\boolean{flagb}}
+  {
+    \RequirePackage{mathptmx}
+    \RequirePackage[T1]{fontenc}
+    \renewcommand*{\rmdefault}{ptm}
+  }
+  {
+    \ifthenelse{\not\boolean{flaga}\and\boolean{flagb}} %
+      {
+        \RequirePackage[scaled=0.9]{helvet}
+        \RequirePackage[T1]{fontenc}
+        \renewcommand{\familydefault}{\sfdefault}
+      }
+      {
+        \ifthenelse{\boolean{flaga}\and\boolean{flagb}} %
+          {
+            \RequirePackage{lmodern}
+            \RequirePackage[T1]{fontenc}
+            \renewcommand{\familydefault}{\sfdefault}
+          }
+          {
+          }
+      }
+  }
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+\ifthenelse{\boolean{UFFshowframe}}
+  {\geometry{showframe=true}}{\geometry{showframe=false}}
+
+\setkeys{ESO}{colorgrid=true}
+\gridSetup[mm]{1.266mm}{1.266}{5}{20}{1}
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+\RequirePackage[brazil]{babel}
+\addto\captionsbrazil{%
+  \renewcommand\contentsname{Sum\'ario}
+  \renewcommand{\listfigurename}{Lista de figuras}
+  \renewcommand{\listtablename}{Lista de tabelas}
+  \renewcommand\bibname{Refer\^encias Bibliográficas}
+  \renewcommand\indexname{\'Indice de assuntos}
+  \renewcommand\figurename{Figura}
+  \renewcommand\legendname{Legenda}
+  \renewcommand\sourcename{Fonte}
+  \renewcommand\tablename{Tabela}
+  \renewcommand\partname{}
+  \renewcommand\chaptername{}
+  \renewcommand\appendixname{Ap\^endice}
+  \renewcommand\annexname{Anexo}
+  \renewcommand\abstractname{Abstract}
+}
+
+\newcommand{\abrevnome}{Lista de abreviaturas e siglas}
+\newcommand{\simbnome}{Lista de s\'imbolos}
+\newcommand{\dedicatorianome}{Dedicat\'oria}
+\newcommand{\agradecimentosnome}{Agradecimentos}
+\newcommand{\orientadornome}{Orientador}
+\newcommand{\coorientadornome}{Coorientador}
+\newcommand{\resumonome}{Resumo}
+\newcommand{\glossarionome}{Gloss\'ario}
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+\newcommand{\ifnotempty}[2]
+	{
+		\ifthenelse{\not\equal{#1}{}}
+		{#2}
+		{}
+	}
+
+\newcommand{\ifempty}[2]
+	{
+		\ifthenelse{\equal{#1}{}}
+		{#2}
+		{}
+	}
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+% Comandos de dados
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+% ---
+% Comandos de dados - logo da UFF
+% ---
+\newcommand{\logo}[1] {%
+  \newcommand{\UFFlogo}{#1}
+}
+% ---
+
+% ---
+% Comandos de dados - marca d'agua da folha de rosto
+% ---
+\newcommand{\watermark}[5] {%
+  \newcommand{\UFFwatermark}{#1}
+  \newcommand{\imgposX}{#2}
+  \newcommand{\imgposY}{#3}
+  \newcommand{\imgwidth}{#4}
+  \newcommand{\imgheight}{#5}
+}
+% ---
+
+%-----------------------------------------------------------
+% Imagens pretextuais (precisam estar no diretório "nao_mexer")
+%-----------------------------------------------------------
+
+\logo{nao_mexer/eeimvr_logo.png}
+\watermark{nao_mexer/uff_capa.png}{70}{50}{\textwidth}{25.5cm} % não mexa nesses parâmetros
+%% parametros da \mardagua em ordem: arqivo, posx inicial, posy inicial, width, height
+
+% ---
+% Comandos de dados - total de paginas do documento
+% ---
+\newcommand{\UFFpaginas}{\pageref{LastPage}}
+% ---
+
+% ---
+% Comandos de dados - t\'itulo do documento
+% ---
+\providecommand{\UFFtitulo}{}
+\newcommand{\titulo}[1]{
+  \renewcommand{\UFFtitulo}{#1}
+}
+
+\newcommand{\chaveA}{}
+\newcommand{\chaveB}{}
+\newcommand{\chaveC}{}
+\newcommand{\chaveD}{}
+\newcommand{\palavraschaves}[4]{
+  \renewcommand{\chaveA}{#1;}
+  \renewcommand{\chaveB}{#2;}
+  \renewcommand{\chaveC}{#3;}
+  \ifnotempty{#4}{\renewcommand{\chaveD}{#4.}}
+}
+
+\newcommand{\keyA}{}
+\newcommand{\keyB}{}
+\newcommand{\keyC}{}
+\newcommand{\keyD}{}
+\newcommand{\keywords}[4]{
+  \renewcommand{\keyA}{#1;}
+  \renewcommand{\keyB}{#2;}
+  \renewcommand{\keyC}{#3;}
+  \ifnotempty{#4}{\renewcommand{\keyD}{#4.}}
+}
+% ---
+
+% ---
+% Comandos de dados - autor (use \and para multiplos autores)
+% ---
+% Abaixo temos o código que fará o programa ler as iniciais do nome da pessoa escrevendo as preposições do nome por extenso
+
+% Código pra verificar se a letra está em uppercase
+\makeatletter
+\def\instring#1#2{TT\fi\begingroup
+  \edef\x{\endgroup\noexpand\in@{#1}{#2}}\x\ifin@}
+%
+\def\isuppercase#1{%
+  \instring{#1}{AÂBCÇDEFGĞHIİÎJKLMNOÖÔPRSŞTUÜÛVYZ}%
+}%
+\makeatother
+
+% Código que vai puxar as iniciais do nome do autor, escrevendo as preposições do nome por extenso
+\def\firstletters{\bgroup \catcode`-=10 \catcode`(=10 \filA}
+\def\filA#1{\filB#1 {\end} }
+\def\filB#1#2 {
+\ifx
+    \end#1\space\egroup
+\else
+    \if\isuppercase{#1}
+        #1.
+    \else 
+        #1#2
+    \fi
+    \expandafter\filB
+\fi} 
+
+\providecommand{\UFFautor}{}
+\newcommand{\autor}[3]{
+  \author{#1 #2}
+  \newcommand{\UFFautornome}{#1}
+  \newcommand{\UFFautornomeabrv}{\MakeUppercase{#2},\firstletters{#1}\unskip}
+  \newcommand{\UFFautorsobrenome}{#2}
+  \renewcommand{\UFFautor}{\UFFautornome\ \UFFautorsobrenome}
+}
+
+\newcommand\grauTitulo{Bacharel em \UFFcurso}  % Informação daqui aparece na folha de rosto no preambulo (requisito parcial para obtenção do grau Bacharel em Engenharia ****)
+
+% \providecommand{\UFFautor}{}
+% \newcommand{\autor}[3]{
+%   \author{#1 #2}
+%   \newcommand{\UFFautornome}{#1}
+%   \newcommand{\UFFautornomeabvr}{#3}
+%   \newcommand{\UFFautorsobrenome}{#2}
+%   \renewcommand{\UFFautor}{\UFFautornome\ \UFFautorsobrenome}
+% }
+% ---
+
+% ---
+% Comandos de dados - local
+% ---
+\providecommand{\UFFlocal}{}
+\newcommand{\local}[1]{
+  \renewcommand{\UFFlocal}{#1}
+}
+% ---
+
+% ---
+% Comandos de dados - data
+% ---
+\providecommand{\UFFdata}{}
+\newcommand{\data}[3]{
+  \date{#1}
+  \newcommand{\UFFdia}{#1}
+  \newcommand{\UFFmes}{#2}
+  \newcommand{\UFFano}{#3}
+  \renewcommand{\UFFdata}{\UFFano}
+}
+% ---
+
+% ---
+% Comandos de dados - instituicao
+% ---
+\providecommand{\UFFinstituicao}{}
+\newcommand{\instituicao}[4]{
+  \newcommand{\UFFnome}{#1}
+  \newcommand{\UFFcentro}{#2}
+  \newcommand{\UFFunidade}{#3}
+  \newcommand{\UFFunidadenome}{}
+  \ifnotempty{#4}{\renewcommand{\UFFunidadenome}{ #4}}
+
+  \renewcommand{\UFFinstituicao}{
+    \UFFnome\par\UFFcentro\par\UFFunidade\par\UFFunidadenome
+  }
+}
+% ---
+
+% ---
+% Comandos de dados - tipo de trabalho
+% ---
+\newcommand{\UFFtitulacao}{}
+\newcommand{\UFFgrau}{}
+\newcommand{\UFFdocumento}{}
+\newcommand{\UFFposgraduacao}{}
+% ---
+\newcommand{\curso}[1]{
+  \newcommand{\UFFcurso}{#1}
+}
+% ---
+\newcommand{\presented}{apresentada}
+% ---
+\newcommand{\grau}[1]{
+  \ifthenelse{\equal{#1}{Mestre}}{
+    \renewcommand{\UFFtitulacao}{Mestre em Ciências}
+    \renewcommand{\UFFgrau}{Mestrado}
+    \renewcommand{\UFFdocumento}{Disserta\c{c}\~ao}
+    \renewcommand{\UFFposgraduacao}
+      {Programa de P\'os-Gradua\c{c}\~ao em \UFFcurso}
+  }{\ifthenelse{\equal{#1}{Doutor}}{
+      \renewcommand{\UFFtitulacao}{Doutor em Ciências}
+      \renewcommand{\UFFgrau}{Doutorado}
+      \renewcommand{\UFFdocumento}{Tese}
+      \renewcommand{\UFFposgraduacao}
+        {Programa de P\'os-Gradua\c{c}\~ao em \UFFcurso}
+    }{\ifthenelse{\equal{#1}{Bacharel}}{
+        \renewcommand{\UFFtitulacao}{Bacharel em \UFFcurso}
+        \renewcommand{\UFFgrau}{Bacharelado}
+        \renewcommand{\UFFdocumento}{Monografia}
+        \renewcommand{\UFFposgraduacao}{\UFFunidade{\UFFunidadenome}}
+      }{\ifthenelse{\equal{#1}{Licenciado}}{
+          \renewcommand{\UFFtitulacao}{Licenciado}
+          \renewcommand{\UFFgrau}{Licenciatura}
+          \renewcommand{\UFFdocumento}{Monografia}
+          \renewcommand{\UFFposgraduacao}{\UFFunidade{\UFFunidadenome}}
+        }{
+          \renewcommand{\UFFtitulacao}{\grauTitulo}
+          \renewcommand{\UFFgrau}{Gradua\c{c}\~ao}
+          \renewcommand{\UFFdocumento}{Trabalho de Conclus\~ao de Curso}
+          \renewcommand{\UFFposgraduacao}{\UFFunidadenome}
+          \renewcommand{\presented}{apresentado}
+        }
+      }
+    }
+  }
+}
+% ---
+% Preposição A + Artigo que aparece no preâmbulo da folha de rosto: apresentado AO Departamento... 
+\newcommand\artigo{ao}
+% ---
+
+% ---
+% Comandos de dados - preambulo
+% ---
+\providecommand{\UFFconcentracao}{}
+\newcommand{\areadeconcentracao}[1]{
+  \ifnotempty{#1}{\renewcommand{\UFFconcentracao}{\'Area de concentra\c{c}\~ao: #1.}}
+}
+% ---
+\providecommand{\UFFpreambulo}{}
+\newcommand{\preambulo}[1]{
+  \renewcommand{\UFFpreambulo}{\singlespacing{#1}}
+}
+% --- modelo documento UFF (novo)
+\preambulo{\UFFdocumento\ \presented{} \artigo \UFFposgraduacao{} da \UFFnome{} como requisito parcial para obten\c{c}\~ao do grau \UFFtitulacao. \UFFconcentracao}
+
+% ---
+% Palavras chave do Resumo
+% ---
+\newlength{\hanglength}
+\newcommand{\imprimirchaves}{
+  \vspace{0.3\baselineskip}\onehalfspacing \settowidth{\hanglength}{Palavras-chave: }
+  \noindent Palavras-chave: \parbox[t]{\textwidth-\hanglength}{
+    \raggedright \chaveA\ \chaveB\ \chaveC\ \chaveD
+  }
+}
+% ---
+
+% ---
+% Palavras chave do Abstract
+% ---
+\newcommand{\printkeys}{
+  \vspace{0.3\baselineskip}\onehalfspacing \settowidth{\hanglength}{Keywords: }
+  \noindent Keywords: \parbox[t]{\textwidth-\hanglength}{
+    \raggedright \keyA\ \keyB\ \keyC\ \keyD\
+  }
+}
+% ---
+
+% ---
+% Comandos de dados - orientador
+% ---
+\providecommand{\UFFsurpevisor}{}
+\providecommand{\UFForientador}{}
+\newcommand{\orientador}[5][\orientadornome]{
+  \renewcommand{\UFFsurpevisor}{#1}%
+  \newcommand{\UFForientadortitulo}{#2}
+  \newcommand{\UFForientadornome}{#3}
+  \newcommand{\UFForientadorsobrenome}{#4}
+  \newcommand{\UFForientadorinstituicao}{#5}
+  \renewcommand{\UFForientador}
+    {\UFForientadortitulo\ \UFForientadornome\ \UFForientadorsobrenome}
+}
+% ---
+
+% ---
+% Comandos de dados - coorientador
+% ---
+\providecommand{\UFFcosurpevisor}{}
+\providecommand{\UFFcoorientador}{}
+\newcommand{\coorientador}[5][\coorientadornome]{
+  \renewcommand{\UFFcosurpevisor}{#1}%
+  \newcommand{\UFFcoorientadortitulo}{#2}
+  \newcommand{\UFFcoorientadornome}{#3}
+  \newcommand{\UFFcoorientadorsobrenome}{#4}
+  \newcommand{\UFFcoorientadorinstituicao}{#5}
+  \renewcommand{\UFFcoorientador}
+    {\UFFcoorientadortitulo\ \UFFcoorientadornome\ \UFFcoorientadorsobrenome}
+}
+% ---
+
+% ---
+% comprimento do traco de assinatura e do texto abaixo dele
+\newlength{\UFFsignwidth}
+\setlength{\UFFsignwidth}{12.25cm}
+% ---
+% espessura do traco
+\newlength{\UFFsignthickness}
+\setlength{\UFFsignthickness}{1pt}
+% ---
+% espaco entre o traco de assinatura e o texto anterior
+\newlength{\UFFsignskip}
+\setlength{\UFFsignskip}{0.8cm}
+% ---
+% assinatura com traco
+\newcommand{\UFFsign}[1]{%
+  \parbox[t]{\UFFsignwidth}{\singlespacing{
+    \vspace*{1.25\UFFsignskip}
+    \rule{\UFFsignwidth}{\UFFsignthickness}\par
+    \nopagebreak #1\par}
+  }
+}
+% ---
+% assinatura sem traco
+\newcommand{\UFFunsign}[1]{%
+  \parbox[t]{\UFFsignwidth}{\singlespacing{
+    \nopagebreak #1\par
+    \vspace*{\UFFsignskip}}
+  }
+}
+% ---
+% assinatura com estrela
+\newcommand{\UFFucsign}[2]%
+  {\par\hspace{1.5cm}\UFFunsign{#1\\ #2}}
+% ---
+% assinatura sem estrela
+\newcommand{\UFFcsign}[2]%
+  {\begingroup\par\hspace{1.5cm}\UFFsign{#1\\ #2}\endgroup}  
+% ---
+
+% ---
+% Comando \assinatura
+% ---
+\makeatletter
+\newcommand{\assinatura}{\@ifstar{\UFFucsign}{\UFFcsign}}
+\makeatother
+% ---
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+% Elemento pre-textual - Capa
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+\geometry{top=3cm, bottom=2cm, left=3cm, right=2cm}
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+% Elemento pre-textual - Capa
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+\makeatletter
+\newcommand{\capa}{\@ifstar{\UFFcapaB}{\UFFcapaA}} %if \comando* (ênfase no asterisco), faz a primeira opcao, senao faz a segunda
+
+\newcommand{\UFFcapaA}{
+  \setcounter{page}{0}{
+    \AddToShipoutPicture*{
+        \put(\imgposX,\imgposY){
+          \includegraphics[width=\imgwidth, height=\imgheight]{\UFFwatermark}
+        }
+    }
+%    \begin{onehalfspace}
+      \begin{adjustwidth}{0cm}{0cm}
+      {\parbox[h]{\textwidth}{{{\bfseries\MakeUppercase{\UFFinstituicao}}}}}\par
+      \end{adjustwidth}
+      \vfill\vfill\vfill
+      \begin{adjustwidth}{6cm}{0cm}
+        {\parbox[c]{.7\textwidth}{\centering{{\bfseries\MakeUppercase{\UFFautor}}}}}\par
+      \end{adjustwidth}
+      \vfill\vfill
+      \begin{adjustwidth}{6cm}{0cm}
+        {\parbox[t]{.7\textwidth}{\centering{{\bfseries\MakeUppercase{\UFFtitulo}}}}}\par
+      \end{adjustwidth}
+      \vfill\vfill\vfill
+      \begin{adjustwidth}{9cm}{0cm}
+        {\parbox[t]{.3\textwidth}{\centering{{\bfseries\MakeUppercase{\UFFlocal\\\UFFdata}}}}}
+      \end{adjustwidth}
+%    \end{onehalfspace}
+    \normalsize\cleardoublepage
+  }
+}
+
+\newcommand{\UFFcapaB}{
+  \setcounter{page}{0}{
+    \centering
+%    \begin{onehalfspace}
+      {\parbox[c]{\textwidth}{\centering{{\MakeUppercase{\UFFinstituicao}}}}}\par
+      \vfill
+        \includegraphics[width=0.3\textwidth]{nao_mexer/eeimvr_logo.png}
+        \vfill
+        {\parbox[c]{\textwidth}{\centering{{\MakeUppercase{\UFFautor}}}}}\par
+      \vfill
+        {\parbox[t]{\textwidth}{\centering{{\MakeUppercase{\UFFtitulo}}}}}\par
+      \vfill\vfill\vfill
+        {\parbox[t]{\textwidth}{\centering{{\MakeUppercase{\UFFlocal\\\UFFdata}}}}}
+%    \end{onehalfspace}
+    \normalsize\cleardoublepage
+  }
+}
+
+\makeatother
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+% Elemento pre-textual - Folha de rosto
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+
+\newcommand{\folhaderosto}{
+  {
+    \centering
+%    \begin{onehalfspace}
+      \MakeUppercase{\UFFautor}\par
+      \vfill\vfill
+      {\bfseries\MakeUppercase{\UFFtitulo}}\par
+      \vfill\vfill\vfill
+      \vspace{.8cm}
+      \hspace{.49\textwidth}
+      \begin{minipage}{.5\textwidth}
+         \UFFpreambulo
+       \end{minipage}%
+       \vfill\vfill\vfill\vfill\vfill
+      \UFFsurpevisor: \UFForientador\par
+      \ifnotempty{\UFFcoorientador}{
+         {\UFFcosurpevisor: \UFFcoorientador}\par
+      }
+      \vfill\vfill\vfill
+      \UFFlocal\\[0.1\baselineskip]
+%    \end{onehalfspace}
+    \UFFdata
+    \cleardoublepage
+  }
+}
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+% Elemento pre-textual - Folha de aprovacao
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+\newenvironment{folhadeaprovacao}{
+%  \begin{onehalfspace}
+    {
+      \centering
+      \MakeUppercase{\UFFautor}\par
+      \vspace{2.5cm}
+      {\bfseries\MakeUppercase{\UFFtitulo}}\\
+      \vspace{2.5cm}
+    }
+    \noindent\hspace{.49\textwidth}
+    \begin{minipage}{.5\textwidth}
+      \UFFpreambulo
+    \end{minipage}%
+    \vspace{1cm}
+    \noindent Aprovado em \UFFdia\ de \UFFmes\ de \UFFano.\par
+    \vspace{1.5cm}
+    \centering{BANCA EXAMINADORA}\\[-0.5\baselineskip]
+      \vspace{\spc}
+      \assinatura{\UFForientador\ (\UFFsurpevisor)}{\UFForientadorinstituicao}
+      \ifnotempty{\UFFcoorientador}{
+      	\vspace{\spc}
+        \assinatura{\UFFcoorientador\ (\UFFcosurpevisor)}{\UFFcoorientadorinstituicao}
+      }
+%  \end{onehalfspace}
+}
+{
+  \vfill
+  {\centering
+    \UFFlocal\\[0.1\baselineskip]
+    \UFFdata\par
+  }
+  \cleardoublepage
+}
+
+% ------------------------------------------------------------------------
+
+\newenvironment{folhadeaprovacao*}{
+%  \begin{onehalfspace}
+    {
+      \centering
+      \UFFautor\par
+      \vspace*{0.8cm}
+      {\bfseries\UFFtitulo}\par
+      \vspace*{1.3cm}
+    }
+    \noindent\hspace*{.49\textwidth}
+    \begin{minipage}{.5\textwidth}
+      \UFFpreambulo
+    \end{minipage}%
+    \vspace*{1.0cm}
+    \noindent Aprovada em \UFFdia\ de \UFFmes\ de \UFFano.\par
+
+    \ifthenelse{\equal{\UFFcoorientador}{}}
+      {
+        \noindent \UFFsurpevisor:
+        \vspace{\spc}
+        \assinatura*{\UFForientador}{\UFForientadorinstituicao}
+      }
+      {
+        \noindent Orientadores:
+        \vspace{\spc}
+        \assinatura*{\UFForientador}{\UFForientadorinstituicao}
+        \vspace{\spc}
+        \assinatura*{\UFFcoorientador}{\UFFcoorientadorinstituicao}
+      }
+    \noindent Banca Examinadora:\\[2\baselineskip]
+%  \end{onehalfspace}
+}
+{
+  \vfill
+  {\centering
+    \UFFlocal\\[0.1\baselineskip]
+    \UFFdata\par
+  }
+  \cleardoublepage
+}
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+% Elemento pre-textual - Lista de abrebiaturas
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+%---
+\makeatletter
+%---
+\newlength{\abbrevlabel}
+\setlength{\abbrevlabel}{2.5cm}
+
+\newcommand{\addabbreviation}[2]{
+  \noindent{\makebox[\abbrevlabel]{#1\hfill}\parbox[t]{\textwidth-\abbrevlabel}{#2\\[-0.6\baselineskip]}}
+}
+
+\newcommand\abbrevitem[2]{%
+  \write\@auxout{\noexpand\@writefile{abr}{\noexpand\addabbreviation{#1}{#2}}}
+  {#2 (#1)}
+}
+
+\newcommand\abbreviationlist{%
+  \pretextualchapter{\abbrevname}
+    \@starttoc{abbr}
+}
+%---
+\makeatother
+%---
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+% Elemento pre-textual - Lista de simbolos
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+%---
+\makeatletter
+%---
+\newlength{\symblabel}
+\setlength{\symblabel}{2.5cm}
+
+\newcommand{\addsymbol}[2]{
+  \noindent{\makebox[\symblabel]{\ensuremath{#1}\hfill}\parbox[t]{\textwidth-\symblabel}{#2\\[-0.6\baselineskip]}}
+}
+
+\newcommand\symbitem[2]{%
+  \write\@auxout{\noexpand\@writefile{sim}{\noexpand\addsymbol{#1}{#2}}}
+  {#1: #2}
+}
+
+\newcommand\symbollist{%
+  \pretextualchapter{\symbname}
+    \@starttoc{sym}
+}
+%---
+\makeatother
+%---
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+% Elemento pre-textual - Glossario
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+%---
+\makeatletter
+%---
+\newlength{\glosslabel}\setlength{\glosslabel}{2.5cm}
+
+\newcommand{\definition}[2]{
+  \noindent{\makebox[\glosslabel]{#1\hfill}\parbox[t]{\textwidth-\glosslabel}{#2\\[-0.6\baselineskip]}}
+}
+
+\newcommand\glossitem[2]{%
+  \write\@auxout{\noexpand\@writefile{glo}{\noexpand\definition{#1}{#2}}}
+}
+
+\newcommand\glossario{%
+  \pretextualchapter{\glossaryname}
+    \@starttoc{glo}
+}
+%---
+\makeatother
+% ---
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+% ---
+
+\newcommand{\indice}[2]{
+  \ifthenelse{\equal{#1}{}}
+    {\index{#1@\textbf{#1}}}
+    {\index{#1@\textbf{#1}!#2}}
+}
+
+\newenvironment{epigrafeonline}{
+    \singlespacing
+    \noindent\hfill\begin{minipage}{0.5\textwidth}
+%    \begin{flushright}%
+}{%
+%    \end{flushright}%
+    \end{minipage}
+    \par\noindent%\ignorespacesafterend
+}
+
+\newenvironment{epigrafeonline*}{
+    \singlespacing
+    \noindent\hfill\begin{minipage}{0.5\textwidth}
+        \begin{flushright}%
+}{%
+        \end{flushright}%
+    \end{minipage}
+    \par\noindent%\ignorespacesafterend
+}
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+% \let\sumario\tableofcontents
+% \let\listadefiguras\listoffigures
+% \let\listadetabelas\listoftables
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+

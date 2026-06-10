@@ -1,0 +1,274 @@
+\documentclass[a4paper,12pt,oneside,onecolumn,final]{EEIMVR}
+% ---
+% Pacotes fundamentais 
+% ---
+
+\usepackage{lipsum}
+% ---
+% Pacote auxiliar para as normas da UFF
+% ---
+\usepackage[frame=no,font=sans]{EEIMVRformat} %font=sans (arial), font=times, font=default ou font=lmodern
+
+% --- Pacotes adicionais usados neste trabalho ---
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{positioning,calc,arrows.meta}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage[portuguese]{algorithm2e}
+\usepackage{listings}
+\definecolor{commentgray}{gray}{0.4}
+\lstset{
+  language=C,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries,
+  commentstyle=\itshape\color{commentgray},
+  numbers=none, frame=single, framerule=0.4pt,
+  breaklines=true, showstringspaces=false, captionpos=b,
+  xleftmargin=1em, aboveskip=1.2em, belowskip=1em,
+  literate=%
+    {á}{{\'a}}1 {à}{{\`a}}1 {â}{{\^a}}1 {ã}{{\~a}}1
+    {é}{{\'e}}1 {ê}{{\^e}}1 {í}{{\'i}}1
+    {ó}{{\'o}}1 {ô}{{\^o}}1 {õ}{{\~o}}1
+    {ú}{{\'u}}1 {ç}{{\c c}}1
+    {Á}{{\'A}}1 {É}{{\'E}}1
+}
+
+% ---
+% Pacote de citacoes
+% ---
+\usepackage[alf, abnt-repeated-author-omit=no, abnt-emphasize = bf, abnt-full-initials=no, abnt-thesis-year=final]{abntex2cite}
+
+% **********************************************************
+% **********************************************************
+% Informações de autoria e institucionais
+% **********************************************************
+% **********************************************************
+
+%-----------------------------------------------------------
+% Grau pretendido (Doutor, Mestre, Bacharel, Licenciado) e Curso
+%-----------------------------------------------------------
+
+
+\grau{Graduação}
+% \grau{Mestre} 
+%\grau{Doutor}
+
+
+\curso{Física Computacional}
+
+
+\areadeconcentracao{} %Projeto de Graduação
+% \areadeconcentracao{Fenômenos de Transporte} %Pós Graduação
+%\areadeconcentracao{Mecânica dos Sólidos} %Pós Graduação
+
+%-----------------------------------------------------------
+% Informações da instituição
+%-----------------------------------------------------------
+\instituicao{Universidade Federal Fluminense}  %Universidade
+            {} % Polo Universitário
+            {Instituto de Ciências Exatas} %Unidade
+            { Curso de Bacharelado em Física  Computacional}
+
+%-----------------------------------------------------------
+% Informações da autoria do documento
+%-----------------------------------------------------------
+
+\autor{Vinícius Santos Anjos da}
+      {Silva}
+      {} % iniciais do nome (opcional)
+
+\titulo{Modelagem baseada em agentes paralelizada em CUDA: o impacto da COVID-19 em áreas urbanas no Brasil}
+
+\orientador{Prof. Dr.} %cargo
+		   {Aquino Lauri} %nome
+           {de Espíndola} %sobrenome
+           {UFF -- Universidade Federal Fluminense -- VVR} % Instituição
+
+%Opcional, Comente as linhas de coorientador caso não tenha
+%\coorientador{Prof. Dr.}{Nome}{Sobrenome}{unidade -- instituição}
+
+%-----------------------------------------------------------
+% Informações adicionais (local, data e paginas)
+%-----------------------------------------------------------
+
+\local{Volta Redonda, RJ}
+\data{XX}{mês}{2026} % preencher com a data da defesa
+
+% ***********************************************************
+% ***********************************************************
+% Início do documento
+% ***********************************************************
+% ***********************************************************
+
+\begin{document}
+% ----------------------------------------------------------
+%% ELEMENTOS PRE-TEXTUAIS
+% ----------------------------------------------------------
+\frontmatter
+% ----------------------------------------------------------ENGENHARIA
+% Capa e a folha de rosto
+% ----------------------------------------------------------
+\capa % use \capa* para ir para o seguundo modelo de capa
+\folhaderosto
+% ----------------------------------------------------------
+% Inserir a ficha catalográfica
+% ----------------------------------------------------------
+% ---
+% A biblioteca deverá providenciar a ficha catalográfica. Salve a ficha no
+% formato PDF. Use o nome do arquivo PDF como argumento do comando. 
+% Exemplo: ficha catalográfica é o arquivo 'Ficha.pdf' na pasta "B.PreTextual"
+%     \fichacatalografica{B.PreTextual/Ficha.pdf}
+%
+% Enquanto não possuir a ficha catalográfica, use o comando sem argumentos.
+% ---
+% \includepdf[noautoscale, pagecommand={}]{B.PreTextual/Ficha.pdf} % Substituir o arquivo ficha.pdf pela sua ficha catalográfica
+
+\include{B.PreTextual/ficha}
+
+
+
+% ----------------------------------------------------------
+% Folha de aprovação
+% ----------------------------------------------------------
+
+%Após obter a assinatura dos membros da banca, comente as linhas a baixos e insira o pdf com as assinaturas na pasta "B.PreTextual"
+
+
+% Ajustar o espaço entre as assinaturas abaixo
+\newcommand{\spc}{0.25cm}
+
+\begin{folhadeaprovacao}
+	\vspace{\spc} % Espaço entre assinaturas
+	\assinatura{Prof(a). Dr(a). Nome }{instituição } %Exemplo
+ 	\vspace{\spc} % Espaço entre assinaturas
+\assinatura{Prof(a). Dr(a). Nome }{instituição } %Exemplo
+% 	\vspace{\spc} % Espaço entre assinaturas
+% 	\assinatura{Eng. Marcos João, B.Sc.}{Instituição}
+% 	\vspace{\spc} % Espaço entre assinaturas
+% 	\assinatura{quarto membro titular da banca}{Instituição}
+\end{folhadeaprovacao}
+
+
+% Após colocar o pdf com as assinaturas na pasta "B.PreTextual", comente todo o ambiente "folhadeaprovacao" acima, descomente a linha abaixo e insira o nome correto do arquivo pdf:
+%\includepdf[pages=1]{B.PreTextual/ficha.pdf} %exemplo
+
+
+% ----------------------------------------------------------
+% Dedicatória
+\include{B.PreTextual/01.Dedication}
+
+% ----------------------------------------------------------
+% Agradecimentos
+\include{B.PreTextual/02.Acknowledgment}
+
+% ----------------------------------------------------------
+% Epigrafe (opcional)
+\include{B.PreTextual/03.Epigraph}
+
+% ----------------------------------------------------------
+%% RESUMO
+\include{B.PreTextual/04.Abstract_pt}
+
+% ----------------------------------------------------------
+% Abstract
+\begin{otherlanguage}{english}
+\include{B.PreTextual/05.Abstract_en}
+\end{otherlanguage}
+
+
+
+% ----------------------------------------------------------
+% Listas de ilustrações e tabelas
+% ----------------------------------------------------------
+\listoffigures % list of figures
+\listoftables % list of tables
+% ----------------------------------------------------------
+% Outras listas
+% ----------------------------------------------------------
+%\listadealgoritmos
+
+
+% ----------------------------------------------------------
+% Lista de abreviaturas e siglas
+\include{B.PreTextual/06.AbbreviationList}
+
+% ----------------------------------------------------------
+% Lista de simbolos
+\include{B.PreTextual/07.SymbolList}
+
+% ----------------------------------------------------------
+% Sumario
+\tableofcontents % table of contents
+
+% ----------------------------------------------------------
+%% ELEMENTOS TEXTUAIS
+% ----------------------------------------------------------
+\mainmatter
+
+
+
+\include{C.Chapters/01.Introduction}
+\include{C.Chapters/02.Theoretical_Background}
+%\include{C.Chapters/03.Methodology}
+%\include{C.Chapters/04.Serial}
+%\include{C.Chapters/05.GPU}
+%\include{C.Chapters/90.Results}
+%\include{C.Chapters/99.Conclusion}  % Conclusão será escrita depois
+
+
+
+
+% ----------------------------------------------------------
+%% ELEMENTOS POS-TEXTUAIS
+% ----------------------------------------------------------
+\backmatter
+%=====================================================================
+% Referencias via BibTeX
+%=====================================================================
+
+\bibliography{A.Bibliography/MyBibliography}
+%=====================================================================
+
+
+
+
+%=====================================================================
+%% Glossário
+%=====================================================================
+\include{D.PostTextual/01.Glossary}
+
+
+
+
+% ----------------------------------------------------------
+% Apêndices (opcionais)
+% ----------------------------------------------------------
+% ---
+% Inicia os apêndices
+% ---
+\appendix
+
+\include{D.PostTextual/02.Appendix-A}
+
+\include{D.PostTextual/02.Appendix-B}
+
+
+
+
+
+
+% ----------------------------------------------------------
+% Anexos (opcionais)
+% ----------------------------------------------------------
+% ---
+% Inicia os anexos
+% ---
+\annex
+
+\include{D.PostTextual/03.Annex-A}
+
+\include{D.PostTextual/03.Annex-B}
+
+%=====================================================================
+\end{document}
