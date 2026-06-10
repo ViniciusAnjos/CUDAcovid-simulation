@@ -1191,6 +1191,160 @@ __global__ void update_kernel(GPUPerson* population, unsigned int* rngStates,
 }
 \end{lstlisting}
 
+\chapter{Resultados e Discussão}
+\label{cap:resultados}
+
+Este capítulo apresenta os resultados obtidos seguindo a estratégia estabelecida na Seção \ref{Met}: primeiro, caracteriza-se a evolução da epidemia produzida pelo modelo nas quatro cidades; em seguida, valida-se a implementação em GPU comparando-a com a serial sob os mesmos parâmetros; e, por fim, avalia-se o ganho de desempenho da paralelização. Os resultados foram obtidos com $\text{MAXSIM} = 50$ simulações por cidade, ao longo de 400 dias, utilizando uma GPU NVIDIA RTX 4070 SUPER.
+
+\section{Evolução da epidemia nas cidades modeladas}
+
+A Figura \ref{fig:res_prevalencia} apresenta a prevalência de cada estado de saúde ao longo do tempo para as quatro cidades. Em todas elas, a população, inicialmente suscetível, é progressivamente infectada à medida que a epidemia avança, atingindo um pico de indivíduos infecciosos e estabilizando-se em um patamar final de recuperados e de suscetíveis remanescentes. A proporção de indivíduos que contraíram a doença ao final da simulação, ou seja, a taxa de ataque, varia de aproximadamente 59\% na Rocinha a cerca de 77\% em Brasília, enquanto a mortalidade por Covid-19 situa-se entre 10\% e 13\% da população.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figuras/res_prevalencia.png}
+\caption{Prevalência de cada estado de saúde ao longo do tempo, para as quatro cidades modeladas.}
+\label{fig:res_prevalencia}
+\end{figure}
+
+A Figura \ref{fig:res_carga} detalha a carga clínica imposta por cada epidemia, mostrando a prevalência de infecciosos e a ocupação de leitos de hospital e de UTI. Observa-se que a proporção de indivíduos hospitalizados e em UTI é muito menor que a de infecciosos, porém persiste por um período prolongado, o que reflete a maior duração desses estados.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figuras/res_carga_clinica.png}
+\caption{Carga clínica por cidade: prevalência de infecciosos e ocupação de leitos de hospital e de UTI.}
+\label{fig:res_carga}
+\end{figure}
+
+\section{Validação da implementação paralela}
+
+A validação da implementação em GPU consiste em verificar se ela reproduz os resultados da implementação serial, tomada como referência, quando ambas são executadas sob os mesmos parâmetros. A Figura \ref{fig:res_validacao} sobrepõe as curvas de prevalência obtidas pelas duas implementações para cada cidade, com a curva serial em traço sólido e a curva da GPU em traço tracejado. As curvas são praticamente indistinguíveis, o que indica que a paralelização preservou o comportamento do modelo.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figuras/res_validacao_curvas.png}
+\caption{Curvas de prevalência das implementações serial (traço sólido) e em GPU (traço tracejado), sob o mesmo $\beta$, para as quatro cidades.}
+\label{fig:res_validacao}
+\end{figure}
+
+A concordância entre as implementações é quantificada pelo erro quadrático médio (RMSE) entre as curvas de proporção de suscetíveis ao longo do tempo. A Tabela \ref{tab:validacao} apresenta, para cada cidade, a infecciosidade $\beta$ calibrada para $R_0 = 3{,}5$, a taxa de ataque obtida por cada implementação e o RMSE correspondente.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Cidade} & \textbf{$\beta$} & \textbf{Ataque (serial)} & \textbf{Ataque (GPU)} & \textbf{RMSE de $S(t)$} \\
+\hline
+Rocinha   & 0,0049 & 58,8\% & 58,7\% & 0,76 p.p. \\
+Manaus    & 0,0995 & 75,4\% & 75,9\% & 0,86 p.p. \\
+Brasília  & 0,0995 & 76,3\% & 76,8\% & 1,13 p.p. \\
+São Paulo & 0,0243 & 72,8\% & 72,6\% & 0,74 p.p. \\
+\hline
+\end{tabular}
+\caption{Validação da implementação em GPU contra a serial, sob o mesmo $\beta$.}
+\label{tab:validacao}
+\end{table}
+
+Em todas as cidades, o RMSE é inferior a $1{,}2$ pontos percentuais, conforme ilustra a Figura \ref{fig:res_rmse}. Uma diferença dessa ordem é compatível com a flutuação estatística inerente ao método de Monte Carlo com um número finito de simulações, uma vez que cada implementação utiliza a sua própria sequência de números pseudoaleatórios. Conclui-se, portanto, que as duas implementações são equivalentes, e logo a paralelização é válida.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figuras/res_rmse.png}
+\caption{Diferença residual (RMSE de $S(t)$) entre as implementações serial e em GPU, sob o mesmo $\beta$, para as quatro cidades.}
+\label{fig:res_rmse}
+\end{figure}
+
+\section{Desempenho}
+
+\subsection{Aceleração e eficiência}
+
+Confirmada a equivalência, avalia-se o ganho de desempenho da implementação em GPU. A Tabela \ref{tab:speedup} apresenta, para cada cidade, o tamanho da rede, o tempo total de execução de cada implementação e a aceleração obtida, e a Figura \ref{fig:res_speedup} apresenta a aceleração por cidade.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\textbf{Cidade} & \textbf{L} & \textbf{Células} & \textbf{Serial} & \textbf{GPU} & \textbf{Aceleração} \\
+\hline
+Rocinha   & 264  & 70 mil    & 235 s      & 129 s & 1,8$\times$ \\
+Manaus    & 1343 & 1,80 mi   & 1.891 s    & 136 s & 13,9$\times$ \\
+Brasília  & 1604 & 2,57 mi   & 2.124 s    & 131 s & 16,2$\times$ \\
+São Paulo & 3355 & 11,25 mi  & 35.755 s   & 634 s & 56,4$\times$ \\
+\hline
+\end{tabular}
+\caption{Tempo de execução e aceleração da implementação em GPU sobre a serial (50 simulações, 400 dias).}
+\label{tab:speedup}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{figuras/res_speedup.png}
+\caption{Aceleração da implementação em GPU sobre a serial, por cidade.}
+\label{fig:res_speedup}
+\end{figure}
+
+O ganho de desempenho é expressivo nas cidades grandes: em São Paulo, a maior rede, a simulação que levava cerca de 9,9 horas em CPU passa a ser executada em pouco mais de 10 minutos na GPU, uma aceleração de $56{,}4\times$. Na Rocinha, a menor rede, a aceleração é de apenas $1{,}8\times$.
+
+\subsection{Escala com o tamanho da rede}
+
+A aceleração obtida cresce com o tamanho da rede, como mostra a Figura \ref{fig:res_escala}. Esse comportamento decorre da natureza da GPU: o seu desempenho só é plenamente aproveitado quando há trabalho suficiente para manter os milhares de threads ocupados. Em redes pequenas, como a da Rocinha, há poucas células e, portanto, poucas threads, de modo que grande parte do potencial da GPU permanece ociosa e o ganho é modesto; em redes grandes, como a de São Paulo, a quantidade de threads é suficiente para saturar o paralelismo da GPU, e logo a aceleração é muito maior.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{figuras/res_speedup_escala.png}
+\caption{Aceleração em função do número de células da rede.}
+\label{fig:res_escala}
+\end{figure}
+
+\subsection{Análise do desempenho}
+
+Para compreender o que determina o desempenho, analisou-se a distribuição do tempo de execução entre as diferentes etapas da simulação. A Figura \ref{fig:res_profile} mostra que, tanto na implementação serial quanto na paralela, a verificação dos contatos do indivíduo suscetível domina o tempo de execução, respondendo por 88\% do tempo no serial e por 60\% na GPU. Essa etapa é justamente a que realiza acessos aleatórios à memória, ao percorrer contatos espalhados pela rede.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figuras/res_profile.png}
+\caption{Distribuição do tempo de execução entre as etapas da simulação, nas implementações serial e em GPU.}
+\label{fig:res_profile}
+\end{figure}
+
+Esse predomínio dos acessos aleatórios à memória indica que a simulação é limitada por memória (\textit{memory-bound}), o que justifica a otimização da estrutura de Health descrita no Capítulo \ref{cap:gpu}. A Figura \ref{fig:res_healthsoa} mostra o impacto dessa otimização: em São Paulo, cidade com grande rede e muitos contatos, o vetor compacto reduz o tempo por simulação de 160 segundos para cerca de 12 segundos, uma aceleração de aproximadamente $14\times$; em Manaus, cidade com poucos contatos, o efeito é desprezível, uma vez que os acessos aleatórios já são pouco numerosos. Esse contraste confirma que o gargalo está no acesso à memória durante a verificação dos contatos.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{figuras/res_healthsoa.png}
+\caption{Impacto da otimização da estrutura de Health sobre o tempo por simulação.}
+\label{fig:res_healthsoa}
+\end{figure}
+
+Uma confirmação independente de que a simulação é limitada por memória é obtida comparando-se o desempenho em duas GPUs distintas, conforme a Figura \ref{fig:res_gpus}. Executando o mesmo código nas duas placas, a razão entre os tempos nas cidades grandes aproxima-se da razão entre as larguras de banda de memória das GPUs ($4{,}5\times$), e não da razão entre as suas capacidades de cálculo em ponto flutuante ($17\times$); ou seja, o desempenho acompanha a banda de memória, e não o poder de cálculo, o que caracteriza um problema limitado por memória.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figuras/res_gpus.png}
+\caption{Comparação de desempenho entre duas GPUs. A razão entre os tempos acompanha a razão entre as larguras de banda de memória, confirmando que a simulação é limitada por memória.}
+\label{fig:res_gpus}
+\end{figure}
+
+\section{Variabilidade dos resultados}
+
+Como o modelo é estocástico, cada simulação produz uma realização distinta da epidemia, e os resultados apresentados correspondem à média sobre as 50 simulações. A Figura \ref{fig:res_bandas} mostra, para cada cidade, a média da proporção de suscetíveis acompanhada da banda de um desvio-padrão em torno dela. As bandas são estreitas, o que indica que, no regime calibrado para $R_0 = 3{,}5$, as simulações individuais variam pouco em torno do comportamento médio e os resultados são estatisticamente robustos.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figuras/res_bandas.png}
+\caption{Média da proporção de suscetíveis e banda de um desvio-padrão sobre as 50 simulações, por cidade.}
+\label{fig:res_bandas}
+\end{figure}
+
+Essa robustez, entretanto, depende do regime considerado. A Figura \ref{fig:res_robustez} compara a distribuição das taxas de ataque das 50 simulações no regime calibrado ($R_0 = 3{,}5$) e em um regime próximo ao limiar epidêmico. No regime calibrado, as taxas de ataque concentram-se em torno da média, com desvio-padrão de cerca de $0{,}5$ ponto percentual; já próximo ao limiar, a incerteza é muito maior, com desvio de cerca de $3{,}6$ pontos percentuais e a ocorrência de extinções estocásticas da epidemia em algumas simulações. Conclui-se que os resultados reportados neste trabalho, obtidos no regime calibrado, são estatisticamente robustos.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figuras/res_robustez.png}
+\caption{Distribuição das taxas de ataque das 50 simulações no regime calibrado ($R_0 = 3{,}5$) e próximo ao limiar epidêmico.}
+\label{fig:res_robustez}
+\end{figure}
+
 \bibliographystyle{unsrt}
 \begin{thebibliography}{9}
 
