@@ -1,17 +1,14 @@
 % se não for usar a quarta palavra chave, deixar o campo vazio: {}
-\palavraschaves{primeira palavra chave}
-{segunda palavra chave}
-{terceira palavra chave}
-{quarta palavra chave (se houver)}
+\palavraschaves{Covid-19}
+{Modelagem baseada em agentes}
+{Programação paralela em GPU}
+{CUDA}
 
 
 
 \pretextualchapter{Resumo}
-% \referencia % linha em branco depois % caso seja necessário a impressão da referência antes do resumo
 
 \noindent
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?
+As simulações epidemiológicas baseadas em agentes permitem representar a evolução de uma doença em uma população levando em conta as características individuais e espaciais dos indivíduos, porém, para áreas com grande número de indivíduos e diversos parâmetros, demandam elevado poder computacional. Este trabalho apresenta a paralelização, utilizando CUDA, de um modelo baseado em agentes do tipo SEIR estendido para a Covid-19, aplicado a quatro áreas urbanas brasileiras: São Paulo, Rocinha, Brasília e Manaus. A implementação em GPU é validada contra a implementação serial de referência sob os mesmos parâmetros, e o seu desempenho é avaliado por meio da aceleração e da eficiência. Os resultados mostram que a implementação paralela reproduz as curvas epidêmicas da implementação serial, com erro quadrático médio inferior a 1,2 ponto percentual, valor compatível com a flutuação estatística do método de Monte Carlo, e que a aceleração obtida cresce com o tamanho da rede, atingindo cerca de 56 vezes para a maior cidade. A análise de desempenho indica que a simulação é limitada pela largura de banda de memória, e uma otimização da estrutura de dados que mantém os acessos na memória cache reduz significativamente o tempo de execução.
 
 \imprimirchaves % linha em branco antes
-
-

@@ -1,86 +1,197 @@
-\chapter{Capítilo 3}
+%=============================================================
+\chapter{Resultados e Discussão}
+\label{cap:resultados}
+%=============================================================
 
+Este capítulo apresenta os resultados obtidos seguindo a estratégia estabelecida na Seção \ref{Met}: primeiro, caracteriza-se a evolução da epidemia produzida pelo modelo nas quatro cidades; em seguida, valida-se a implementação em GPU comparando-a com a serial sob os mesmos parâmetros; e, por fim, avalia-se o ganho de desempenho da paralelização. Os resultados foram obtidos com $\text{MAXSIM} = 50$ simulações por cidade, ao longo de 400 dias. O ambiente computacional utilizado nos experimentos é descrito na Seção \ref{sec:ambiente}.
 
-\lipsum[9-14]
+\section{Ambiente computacional}
+\label{sec:ambiente}
 
+Os experimentos principais foram realizados em uma máquina na qual a implementação serial foi executada em um único núcleo da CPU, servindo de referência, e a implementação paralela foi executada na GPU. A Tabela \ref{tab:hardware} resume as características de hardware das plataformas utilizadas, incluindo a segunda GPU empregada apenas na análise comparativa entre placas.
 
-A figura \ref{fig:rainflow} mostra o método de contagem de ciclos Rainflow...
-
-
-
-\begin{figure}[!h]
-    \centering
-	\caption{Exemplificação do método Rainflow} \label{fig:rainflow}
-	\includegraphics[width=0.5\linewidth]{Figures/Rainflow.png}
-	%\legend{Texto da legenda. (opcional)}
-	\source{Citação da fonte ou `O autor' (opcional)}
-\end{figure}
-
-\lipsum[15-17]
-
-Texto da primeira subseção. Figura \ref{fig:rotulo}\subref{subfig:rotulo2}.
-
-
-\begin{figure}[!h]
-    \centering
-	\caption{Histogramas de contagem de ciclos para diferentes métodos e diferentes fatores de irregularidade.} \label{fig:rotulo}
-	\subfloat[][Legenda a...]{\label{subfig:rotulo1}
-		\includegraphics[width=0.45\linewidth]{Figures/Comparison_in_same_plot025.png}}
-	\subfloat[][Legenda b...]{\label{subfig:rotulo2}
-		\includegraphics[width=0.45\linewidth]{Figures/Comparison_in_same_plot055.png}}\\
-	\subfloat[][Legenda c...]{\label{subfig:rotulo3}
-		\includegraphics[width=0.45\linewidth]{Figures/Comparison_in_same_plot074.png}}
-	\subfloat[][Legenda d...]{\label{subfig:rotulo4}
-		\includegraphics[width=0.45\linewidth]{Figures/Comparison_in_same_plot099.png}}
-	%\legend{Texto da legenda (opcional)}
-	\source{Citação da fonte ou `O autor'. (opcional)}
-\end{figure}
-
-\lipsum[18]
-
-
-Texto da primeira subsubseção. Tabela \ref{tab:rotulo2}.
-
-\begin{table}[!ht]
-	\centering
-	\caption{Propriedades estatísticas no domínio do tempo e da frequência.}
-	\label{tab:rotulo2}
-	\begin{tabular}{c|c|c|c}
-        \hline
-		\textbf{Irregularity Factor} & \textbf{Property}           & \textbf{Frequency-domain} & \textbf{Time-domain} \\ \hline
-\multirow{4}{*}{0.30}   & $\sigma_{X}$        & 43.3                 & 43.2 \\
-             & $\sigma_{\dot{X}}$ & 7251.3                 & 7168.8         \\
-             &   $\nu_{0}$   & 27                 & 25         \\
-             & $\nu_{p}$               & 88                 & 90         \\ \hline
-\multirow{4}{*}{0.58}   & $\sigma_{X}$        & 44.7                 & 44.6 \\
-             & $\sigma_{\dot{X}}$ & 4842.7                 & 4832.1         \\
-             &   $\nu_{0}$   & 17                 & 17         \\
-             & $\nu_{p}$               & 30                 & 24         \\ \hline
-\multirow{4}{*}{0.78}   & $\sigma_{X}$        & 30.3                 & 30.3 \\
-             & $\sigma_{\dot{X}}$ & 35950.6                 & 32608.3         \\
-             &   $\nu_{0}$   & 189                 & 181         \\
-             & $\nu_{p}$               & 243                 & 230         \\ \hline
-	\multirow{4}{*}{0.94}   & $\sigma_{X}$        & 32.0                 & 32.1 \\
-             & $\sigma_{\dot{X}}$ & 16680.5                 & 16521.7         \\
-             &   $\nu_{0}$   & 83                 & 84         \\
-             & $\nu_{p}$               & 88                 & 90
-	\end{tabular}
-	\source{Citação da fonte ou `O autor'. (opcional)}
+\begin{table}[htb]
+\centering
+\caption{Características de hardware das plataformas utilizadas.}
+\label{tab:hardware}
+\begin{tabular}{l c c c}
+\hline
+ & \textbf{CPU (serial)} & \textbf{GPU principal} & \textbf{GPU (comparação)} \\
+\hline
+Modelo            & AMD Ryzen 7 5700X      & RTX 4070 SUPER        & GTX 1050 Ti \\
+Arquitetura       & Zen 3                  & Ada Lovelace (sm\_89) & Pascal (sm\_61) \\
+Núcleos           & 8 núcleos / 16 threads & 7168 CUDA cores       & 768 CUDA cores \\
+Frequência base   & 3,4 GHz                & ---                   & --- \\
+Memória           & 16 GB DDR4             & 12 GB GDDR6X          & 4 GB GDDR5 \\
+Banda de memória  & ---                    & 504 GB/s              & 112 GB/s \\
+Cache L2          & ---                    & 48 MB                 & 1 MB \\
+\hline
+\end{tabular}
+\source{O autor.}
 \end{table}
 
-\lipsum[19-21]
+Embora a CPU disponha de 8 núcleos, a implementação serial utiliza um único núcleo, de modo a constituir a referência sequencial contra a qual o ganho da paralelização é medido. Ambas as implementações foram compiladas com o compilador nvcc (CUDA 12.6) e otimização ativada, sob o sistema operacional Windows 11. A GPU GTX 1050 Ti, de arquitetura anterior e com largura de banda de memória cerca de quatro vezes menor, é utilizada exclusivamente na análise comparativa entre placas (Figura \ref{fig:res_gpus}), que confirma a natureza limitada por memória da simulação.
 
-\begin{landscape}
-	\begin{figure}[!h] 
-    \centering
-	\caption{Exemplo de Página em landscape} \label{outro.rotulo2}
-    %\hspace*{-6cm}
-	\subfloat[][Legenda a...]{\label{subrotulo5}
-		\fbox{\includegraphics[width=0.5\linewidth]{Figures/fatigue-history099.png}}}
-	\subfloat[][Legenda b...]{\label{subrotulo6}
-		\fbox{\includegraphics[width=0.5\linewidth]{Figures/PSD099.png}}}
-	%\legend{Texto da legenda (opcional)}
-	\source{Citação da fonte ou `O autor'. (opcional)}
-	\end{figure}
-\end{landscape}
+\section{Evolução da epidemia nas cidades modeladas}
 
+A Figura \ref{fig:res_prevalencia} apresenta a prevalência de cada estado de saúde ao longo do tempo para as quatro cidades. Em todas elas, a população, inicialmente suscetível, é progressivamente infectada à medida que a epidemia avança, atingindo um pico de indivíduos infecciosos e estabilizando-se em um patamar final de recuperados e de suscetíveis remanescentes. A proporção de indivíduos que contraíram a doença ao final da simulação, ou seja, a taxa de ataque, varia de aproximadamente 59\% na Rocinha a cerca de 77\% em Brasília, enquanto a mortalidade por Covid-19 situa-se entre 10\% e 13\% da população.
+
+\begin{figure}[htb]
+\centering
+\caption{Prevalência de cada estado de saúde ao longo do tempo, para as quatro cidades modeladas.}
+\label{fig:res_prevalencia}
+\includegraphics[width=\textwidth]{Figures/res_prevalencia.png}
+\source{O autor.}
+\end{figure}
+
+A Figura \ref{fig:res_carga} detalha a carga clínica imposta por cada epidemia, mostrando a prevalência de infecciosos e a ocupação de leitos de hospital e de UTI. Observa-se que a proporção de indivíduos hospitalizados e em UTI é muito menor que a de infecciosos, porém persiste por um período prolongado, o que reflete a maior duração desses estados.
+
+\begin{figure}[htb]
+\centering
+\caption{Carga clínica por cidade: prevalência de infecciosos e ocupação de leitos de hospital e de UTI.}
+\label{fig:res_carga}
+\includegraphics[width=\textwidth]{Figures/res_carga_clinica.png}
+\source{O autor.}
+\end{figure}
+
+\section{Validação da implementação paralela}
+
+A validação da implementação em GPU consiste em verificar se ela reproduz os resultados da implementação serial, tomada como referência, quando ambas são executadas sob os mesmos parâmetros. A Figura \ref{fig:res_validacao} sobrepõe as curvas de prevalência obtidas pelas duas implementações para cada cidade, com a curva serial em traço sólido e a curva da GPU em traço tracejado. As curvas são praticamente indistinguíveis, o que indica que a paralelização preservou o comportamento do modelo.
+
+\begin{figure}[htb]
+\centering
+\caption{Curvas de prevalência das implementações serial (traço sólido) e em GPU (traço tracejado), sob o mesmo $\beta$, para as quatro cidades.}
+\label{fig:res_validacao}
+\includegraphics[width=\textwidth]{Figures/res_validacao_curvas.png}
+\source{O autor.}
+\end{figure}
+
+A concordância entre as implementações é quantificada pelo erro quadrático médio (RMSE) entre as curvas de proporção de suscetíveis ao longo do tempo. A Tabela \ref{tab:validacao} apresenta, para cada cidade, a infecciosidade $\beta$ calibrada para $R_0 = 3{,}5$, a taxa de ataque obtida por cada implementação e o RMSE correspondente.
+
+\begin{table}[htb]
+\centering
+\caption{Validação da implementação em GPU contra a serial, sob o mesmo $\beta$.}
+\label{tab:validacao}
+\begin{tabular}{l c c c c}
+\hline
+\textbf{Cidade} & \textbf{$\beta$} & \textbf{Ataque (serial)} & \textbf{Ataque (GPU)} & \textbf{RMSE de $S(t)$} \\
+\hline
+Rocinha   & 0,0049 & 58,8\% & 58,7\% & 0,76 p.p. \\
+Manaus    & 0,0995 & 75,4\% & 75,9\% & 0,86 p.p. \\
+Brasília  & 0,0995 & 76,3\% & 76,8\% & 1,13 p.p. \\
+São Paulo & 0,0243 & 72,8\% & 72,6\% & 0,74 p.p. \\
+\hline
+\end{tabular}
+\source{O autor.}
+\end{table}
+
+Em todas as cidades, o RMSE é inferior a $1{,}2$ pontos percentuais, conforme ilustra a Figura \ref{fig:res_rmse}. Uma diferença dessa ordem é compatível com a flutuação estatística inerente ao método de Monte Carlo com um número finito de simulações, uma vez que cada implementação utiliza a sua própria sequência de números pseudoaleatórios. Conclui-se, portanto, que as duas implementações são equivalentes, e logo a paralelização é válida.
+
+\begin{figure}[htb]
+\centering
+\caption{Diferença residual (RMSE de $S(t)$) entre as implementações serial e em GPU, sob o mesmo $\beta$, para as quatro cidades.}
+\label{fig:res_rmse}
+\includegraphics[width=0.85\textwidth]{Figures/res_rmse.png}
+\source{O autor.}
+\end{figure}
+
+\section{Desempenho}
+
+\subsection{Aceleração e eficiência}
+
+Confirmada a equivalência, avalia-se o ganho de desempenho da implementação em GPU. A Tabela \ref{tab:speedup} apresenta, para cada cidade, o tamanho da rede, o tempo total de execução de cada implementação e a aceleração obtida, e a Figura \ref{fig:res_speedup} apresenta a aceleração por cidade.
+
+\begin{table}[htb]
+\centering
+\caption{Tempo de execução e aceleração da implementação em GPU sobre a serial (50 simulações, 400 dias).}
+\label{tab:speedup}
+\begin{tabular}{l c c c c c}
+\hline
+\textbf{Cidade} & \textbf{L} & \textbf{Células} & \textbf{Serial} & \textbf{GPU} & \textbf{Aceleração} \\
+\hline
+Rocinha   & 264  & 70 mil    & 235 s    & 129 s & 1,8$\times$ \\
+Manaus    & 1343 & 1,80 mi   & 1.891 s  & 136 s & 13,9$\times$ \\
+Brasília  & 1604 & 2,57 mi   & 2.124 s  & 131 s & 16,2$\times$ \\
+São Paulo & 3355 & 11,25 mi  & 35.755 s & 634 s & 56,4$\times$ \\
+\hline
+\end{tabular}
+\source{O autor.}
+\end{table}
+
+\begin{figure}[htb]
+\centering
+\caption{Aceleração da implementação em GPU sobre a serial, por cidade.}
+\label{fig:res_speedup}
+\includegraphics[width=0.8\textwidth]{Figures/res_speedup.png}
+\source{O autor.}
+\end{figure}
+
+O ganho de desempenho é expressivo nas cidades grandes: em São Paulo, a maior rede, a simulação que levava cerca de 9,9 horas em CPU passa a ser executada em pouco mais de 10 minutos na GPU, uma aceleração de $56{,}4\times$. Na Rocinha, a menor rede, a aceleração é de apenas $1{,}8\times$.
+
+\subsection{Escala com o tamanho da rede}
+
+A aceleração obtida cresce com o tamanho da rede, como mostra a Figura \ref{fig:res_escala}. Esse comportamento decorre da natureza da GPU: o seu desempenho só é plenamente aproveitado quando há trabalho suficiente para manter os milhares de threads ocupados. Em redes pequenas, como a da Rocinha, há poucas células e, portanto, poucas threads, de modo que grande parte do potencial da GPU permanece ociosa e o ganho é modesto; em redes grandes, como a de São Paulo, a quantidade de threads é suficiente para saturar o paralelismo da GPU, e logo a aceleração é muito maior.
+
+\begin{figure}[htb]
+\centering
+\caption{Aceleração em função do número de células da rede.}
+\label{fig:res_escala}
+\includegraphics[width=0.75\textwidth]{Figures/res_speedup_escala.png}
+\source{O autor.}
+\end{figure}
+
+\subsection{Análise do desempenho}
+
+Para compreender o que determina o desempenho, analisou-se a distribuição do tempo de execução entre as diferentes etapas da simulação. A Figura \ref{fig:res_profile} mostra que, tanto na implementação serial quanto na paralela, a verificação dos contatos do indivíduo suscetível domina o tempo de execução, respondendo por 88\% do tempo no serial e por 60\% na GPU. Essa etapa é justamente a que realiza acessos aleatórios à memória, ao percorrer contatos espalhados pela rede.
+
+\begin{figure}[htb]
+\centering
+\caption{Distribuição do tempo de execução entre as etapas da simulação, nas implementações serial e em GPU.}
+\label{fig:res_profile}
+\includegraphics[width=\textwidth]{Figures/res_profile.png}
+\source{O autor.}
+\end{figure}
+
+Esse predomínio dos acessos aleatórios à memória indica que a simulação é limitada por memória (\textit{memory-bound}), o que justifica a otimização da estrutura de Health descrita no Capítulo \ref{cap:gpu}. A Figura \ref{fig:res_healthsoa} mostra o impacto dessa otimização: em São Paulo, cidade com grande rede e muitos contatos, o vetor compacto reduz o tempo por simulação de 160 segundos para cerca de 12 segundos, uma aceleração de aproximadamente $14\times$; em Manaus, cidade com poucos contatos, o efeito é desprezível, uma vez que os acessos aleatórios já são pouco numerosos. Esse contraste confirma que o gargalo está no acesso à memória durante a verificação dos contatos.
+
+\begin{figure}[htb]
+\centering
+\caption{Impacto da otimização da estrutura de Health sobre o tempo por simulação.}
+\label{fig:res_healthsoa}
+\includegraphics[width=0.8\textwidth]{Figures/res_healthsoa.png}
+\source{O autor.}
+\end{figure}
+
+Uma confirmação independente de que a simulação é limitada por memória é obtida comparando-se o desempenho em duas GPUs distintas, a RTX 4070 SUPER e uma GTX 1050 Ti, conforme a Figura \ref{fig:res_gpus}. Executando o mesmo código nas duas placas, a razão entre os tempos nas cidades grandes aproxima-se da razão entre as larguras de banda de memória das GPUs (504 GB/s e 112 GB/s, uma razão de $4{,}5\times$), e não da razão entre as suas capacidades de cálculo em ponto flutuante ($17\times$); ou seja, o desempenho acompanha a banda de memória, e não o poder de cálculo, o que caracteriza um problema limitado por memória.
+
+\begin{figure}[htb]
+\centering
+\caption{Comparação de desempenho entre duas GPUs.}
+\label{fig:res_gpus}
+\includegraphics[width=\textwidth]{Figures/res_gpus.png}
+\source{O autor.}
+\end{figure}
+
+A razão entre os tempos acompanha a razão entre as larguras de banda de memória, confirmando que a simulação é limitada por memória.
+
+\section{Variabilidade dos resultados}
+
+Como o modelo é estocástico, cada simulação produz uma realização distinta da epidemia, e os resultados apresentados correspondem à média sobre as 50 simulações. A Figura \ref{fig:res_bandas} mostra, para cada cidade, a média da proporção de suscetíveis acompanhada da banda de um desvio-padrão em torno dela. As bandas são estreitas, o que indica que, no regime calibrado para $R_0 = 3{,}5$, as simulações individuais variam pouco em torno do comportamento médio e os resultados são estatisticamente robustos.
+
+\begin{figure}[htb]
+\centering
+\caption{Média da proporção de suscetíveis e banda de um desvio-padrão sobre as 50 simulações, por cidade.}
+\label{fig:res_bandas}
+\includegraphics[width=\textwidth]{Figures/res_bandas.png}
+\source{O autor.}
+\end{figure}
+
+Essa robustez, entretanto, depende do regime considerado. A Figura \ref{fig:res_robustez} compara a distribuição das taxas de ataque das 50 simulações no regime calibrado ($R_0 = 3{,}5$) e em um regime próximo ao limiar epidêmico. No regime calibrado, as taxas de ataque concentram-se em torno da média, com desvio-padrão de cerca de $0{,}5$ ponto percentual; já próximo ao limiar, a incerteza é muito maior, com desvio de cerca de $3{,}6$ pontos percentuais e a ocorrência de extinções estocásticas da epidemia em algumas simulações. Conclui-se que os resultados reportados neste trabalho, obtidos no regime calibrado, são estatisticamente robustos.
+
+\begin{figure}[htb]
+\centering
+\caption{Distribuição das taxas de ataque das 50 simulações no regime calibrado ($R_0 = 3{,}5$) e próximo ao limiar epidêmico.}
+\label{fig:res_robustez}
+\includegraphics[width=0.95\textwidth]{Figures/res_robustez.png}
+\source{O autor.}
+\end{figure}

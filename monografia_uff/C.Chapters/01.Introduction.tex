@@ -1,29 +1,26 @@
 %=============================================================
 \chapter{Introdução}
+\label{Intro}
 %=============================================================
 
-\noindent
---------------------------------------------------
+O novo vírus SARS-CoV-2, que causa a Covid-19, se espalha a partir de pequenas partículas líquidas emitidas por tosse, espirros e saliva de pessoas infectadas. A disseminação da doença está principalmente relacionada ao contato próximo de indivíduos em ambientes confinados, sem ventilação adequada e com interação frequente com um número significativo de pessoas. Pelas características do vírus, a evolução da doença se comporta de maneira diferente por região, e elementos específicos de cada área, como densidade populacional, pirâmide etária e disponibilidade de leitos hospitalares e de tratamento intensivo, são fundamentais para o modo como o espalhamento do vírus e a sua letalidade ocorrerão em tal região.
 
-Neste modelo, deve-se usar os comandos $\backslash$cite para citar o trabalho e $\backslash$citeonline para citar o autor!!! \textbf{Não utilize} $\backslash$citet ou $\backslash$citep. Veja abaixo alguns exemplos:
+Para tentar prever como uma doença se espalhará em uma epidemia, são utilizados modelos epidemiológicos, que podem ser determinísticos, através de equações diferenciais, ou estocásticos, que evoluem através de probabilidades \citeonline{keeling2008}. Neste trabalho será feita uma modelagem baseada em agentes, na qual a evolução da epidemia ocorre através da interação de indivíduos que possuem diversas características, como idade, sexo e outras que sejam relevantes ao modelo. A presença de diversos parâmetros e o grande número de agentes para algumas áreas torna necessário um maior poder computacional para a calibração e a implementação do modelo, e logo a sua paralelização pode ser uma forma eficiente de obter os resultados do modelo.
 
-Citando o autor:
+GPUs são orientadas a \textit{throughput} em detrimento de latência e, logo, conseguem realizar tarefas mais simples e em número maior do que CPUs. Com a popularização de GPUs Nvidia no mercado e a existência da API CUDA (\textit{Compute Unified Device Architecture}), que estende C/C++ para a computação em paralelo \cite{sanders2011}, a modelagem baseada em agentes em conjunto com a API CUDA torna-se uma boa alternativa para criar um modelo que represente diferentes áreas do Brasil e, ainda assim, obtenha eficiência, de modo que cada área não demande muito tempo de simulação.
 
-Para análise de fadiga utilizando métodos baseados no domínio da frequênccia para históricos Gaussianos, o método proposto por \citeonline{dirlik1985} obtém resultados mais próximos do método Rainflow.
+\section{Objetivos}
 
+Este trabalho possui os seguintes objetivos:
 
-Citando o trabalho:
+\begin{itemize}
+    \item criar um modelo baseado em agentes que contemple as características dos indivíduos e as particularidades das áreas modeladas;
+    \item mostrar como a Covid-19 impacta uma área de acordo com as suas características;
+    \item implementar o modelo em paralelo utilizando CUDA;
+    \item validar os resultados obtidos em paralelo contra os obtidos em serial;
+    \item realizar um \textit{benchmark} que evidencie a melhora de desempenho do modelo paralelizado.
+\end{itemize}
 
-É notável que uma única distribuição Weibull não seja adequada para modelar PDF para fatores de irregularidade típicos de uma banda estreita. Para esses casos, uma distribuição de Rayleigh obtém resultados mais confiáveis \cite{zhao1992}.
+\section{Organização do trabalho}
 
-Citação longa:
-
-\begin{longquote}
-    Um exemplo de citação longa nas regras da ABNT (4cm de recuo e fonte menor)
-    feita com o ambiente  \verb|longquote|. A citação deve possuir letra com tamanho 10 e espaçamento simples, não deve ser escrita com aspas, é obrigatório que esteja referenciada a página de onde a citação foi retirada. Ademais, é necessário que haja uma linha em branco separando a citação dos parágrafos anterior e posterior. O ponto final deve ser colocado após a autoria, como pode ser visto~\cite[p.~83]{dos2018manual}.
-\end{longquote}
-
-\noindent
---------------------------------------------------
-
-\lipsum[1-6]
+Além desta introdução, este trabalho está organizado da seguinte forma. O Capítulo \ref{FT} apresenta os fundamentos teóricos necessários, abrangendo os modelos epidemiológicos compartimentais, a modelagem baseada em agentes, o método de Monte Carlo, a arquitetura de GPUs e o modelo de programação em CUDA. O Capítulo \ref{Met} descreve a metodologia, detalhando o modelo epidemiológico, os seus parâmetros e a estratégia de paralelização e validação. Os Capítulos \ref{cap:serial} e \ref{cap:gpu} apresentam, respectivamente, a implementação serial de referência e a implementação paralela em GPU. O Capítulo \ref{cap:resultados} apresenta e discute os resultados, validando a equivalência entre as implementações e avaliando o ganho de desempenho obtido.
