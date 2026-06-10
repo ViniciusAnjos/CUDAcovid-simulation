@@ -3,7 +3,7 @@
 \label{cap:gpu}
 %=============================================================
 
-A implementação paralela do modelo em CUDA constitui a principal contribuição deste trabalho. O mesmo modelo descrito no Capítulo \ref{Met} e a mesma lógica da implementação serial são reorganizados de modo que a rede seja processada em paralelo, com uma thread responsável por cada indivíduo. O desafio central é preservar o comportamento do modelo --- e, portanto, a equivalência com o serial --- ao mesmo tempo em que se explora o paralelismo da GPU.
+A implementação paralela do modelo em CUDA constitui a principal contribuição deste trabalho. O mesmo modelo descrito no Capítulo \ref{Met} e a mesma lógica da implementação serial são reorganizados de modo que a rede seja processada em paralelo, com uma thread responsável por cada indivíduo. O desafio central é preservar o comportamento do modelo e, portanto, a equivalência com o serial, ao mesmo tempo em que se explora o paralelismo da GPU.
 
 \section{Mapeamento da rede em threads}
 
@@ -19,11 +19,11 @@ __host__ __device__ void to2D(int idx, int L, int &i, int &j) {
 }
 \end{lstlisting}
 
-Outra diferença em relação ao serial está no tratamento dos estados de saúde. Em vez de uma única varredura com um despacho condicional, cada estado possui o seu próprio kernel, lançado sobre toda a rede: cada thread verifica se o seu indivíduo se encontra no estado tratado por aquele kernel e, em caso afirmativo, aplica a regra correspondente. Os kernels de estado são lançados em sequência a cada dia --- contorno, S, E, IP, IS, H, UTI e atualização ---; uma vez que o lançamento de cada kernel é um ponto de sincronização global, a ordem das funções de estado do serial é preservada, o que é essencial para a equivalência entre as implementações.
+Outra diferença em relação ao serial está no tratamento dos estados de saúde. Em vez de uma única varredura com um despacho condicional, cada estado possui o seu próprio kernel, lançado sobre toda a rede: cada thread verifica se o seu indivíduo se encontra no estado tratado por aquele kernel e, em caso afirmativo, aplica a regra correspondente. Os kernels de estado são lançados em sequência a cada dia, na ordem contorno, S, E, IP, IS, H, UTI e atualização; uma vez que o lançamento de cada kernel é um ponto de sincronização global, a ordem das funções de estado do serial é preservada, o que é essencial para a equivalência entre as implementações.
 
 \section{Estrutura de dados na GPU}
 
-Cada indivíduo é representado na GPU por uma estrutura análoga à do serial, alinhada em 16 bytes para favorecer o acesso à memória, e a rede é armazenada como um vetor dessas estruturas na memória global do \textit{device}. Os parâmetros do modelo --- a infecciosidade, os parâmetros de cada cidade, as durações dos estados e os códigos dos estados de saúde --- são armazenados em memória constante, apropriada para dados apenas de leitura que são acessados por todas as threads. A Listagem \ref{lst:gpustruct} apresenta a estrutura e alguns desses parâmetros.
+Cada indivíduo é representado na GPU por uma estrutura análoga à do serial, alinhada em 16 bytes para favorecer o acesso à memória, e a rede é armazenada como um vetor dessas estruturas na memória global do \textit{device}. Os parâmetros do modelo (a infecciosidade, os parâmetros de cada cidade, as durações dos estados e os códigos dos estados de saúde) são armazenados em memória constante, apropriada para dados apenas de leitura que são acessados por todas as threads. A Listagem \ref{lst:gpustruct} apresenta a estrutura e alguns desses parâmetros.
 
 \begin{lstlisting}[caption={Estrutura do indivíduo e parâmetros em memória constante.}, label={lst:gpustruct}]
 struct __align__(16) GPUPerson {
@@ -58,7 +58,7 @@ Os mecanismos de contágio percorrem, para cada indivíduo, diversos contatos al
     \draw[->, thick, gray] (p\x.south) -- (c\x.north);
   }
   \node[anchor=west, font=\footnotesize] at (-1.15,1.05) {\texttt{population[]}: \texttt{GPUPerson} com 13 campos ($\approx$ 52 bytes/célula)};
-  \node[anchor=west, font=\footnotesize] at (-1.15,-3.1) {\texttt{d\_HealthC[]}: apenas \texttt{Health} (1 byte/célula) --- cabe na cache L2};
+  \node[anchor=west, font=\footnotesize] at (-1.15,-3.1) {\texttt{d\_HealthC[]}: apenas \texttt{Health} (1 byte/célula), cabe na cache L2};
 \end{tikzpicture}
 \end{figure}
 

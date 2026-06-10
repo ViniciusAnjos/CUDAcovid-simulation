@@ -37,8 +37,8 @@ A atualização da rede é feita de forma síncrona por meio de um duplo-buffer,
 \caption{Duplo-buffer da atualização síncrona.}
 \label{fig:duplobuffer}
 \begin{tikzpicture}[font=\small, >=Stealth]
-  \node[draw, thick, fill=blue!10, minimum width=4.8cm, minimum height=0.9cm] (health) at (0,1.5) {\texttt{Health} --- estado atual};
-  \node[draw, thick, fill=green!12, minimum width=4.8cm, minimum height=0.9cm] (swap) at (0,-1.5) {\texttt{Swap} --- próximo estado};
+  \node[draw, thick, fill=blue!10, minimum width=4.8cm, minimum height=0.9cm] (health) at (0,1.5) {\texttt{Health}: estado atual};
+  \node[draw, thick, fill=green!12, minimum width=4.8cm, minimum height=0.9cm] (swap) at (0,-1.5) {\texttt{Swap}: próximo estado};
   \node[draw, thick, rounded corners, fill=gray!10, align=center, text width=3.1cm, minimum height=1.4cm] (func) at (6.4,0) {funções de estado\\ (\texttt{Sfunc}, \texttt{IPfunc}, \dots)};
   \draw[->, thick] (health.east) -- (func.north west) node[midway, above, sloped, font=\scriptsize]{lê};
   \draw[->, thick] (func.south west) -- (swap.east) node[midway, below, sloped, font=\scriptsize]{escreve};
@@ -159,7 +159,7 @@ As funções dos estados sintomático severo, hospitalizado e de UTI consideram 
 
 \section{Implementação dos mecanismos de contágio}
 
-O primeiro mecanismo de contágio é realizado pela função associada ao estado suscetível, que percorre a vizinhança local do indivíduo --- de Moore para as cidades de alta densidade e de Von Neumann para as de baixa densidade --- e os seus contatos aleatórios, contando o número $n$ de indivíduos infectados encontrados. A partir desse número, calcula-se a probabilidade de contágio $P = 1 - (1 - \beta)^n$ e, com um número aleatório, decide-se se o suscetível é infectado, caso em que ele transita para o estado exposto. A Listagem \ref{lst:neighbors} apresenta esse mecanismo, no qual \texttt{infeccioso}($\cdot$) denota o teste de o indivíduo estar em um estado infeccioso.
+O primeiro mecanismo de contágio é realizado pela função associada ao estado suscetível, que percorre a vizinhança local do indivíduo (de Moore para as cidades de alta densidade e de Von Neumann para as de baixa densidade) e os seus contatos aleatórios, contando o número $n$ de indivíduos infectados encontrados. A partir desse número, calcula-se a probabilidade de contágio $P = 1 - (1 - \beta)^n$ e, com um número aleatório, decide-se se o suscetível é infectado, caso em que ele transita para o estado exposto. A Listagem \ref{lst:neighbors} apresenta esse mecanismo, no qual \texttt{infeccioso}($\cdot$) denota o teste de o indivíduo estar em um estado infeccioso.
 
 \begin{lstlisting}[caption={Primeiro mecanismo: o suscetível busca infectados (\texttt{Neighborsfunc}).}, label={lst:neighbors}]
 int Neighborsfunc(int i, int j) {
