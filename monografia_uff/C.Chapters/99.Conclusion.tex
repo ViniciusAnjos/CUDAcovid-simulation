@@ -1,15 +1,16 @@
 %==============================================================
 \chapter{Conclusão}
+\label{cap:conclusao}
 %==============================================================
 
-\lipsum[21-25]
+Este trabalho apresentou a paralelização, utilizando CUDA, de um modelo baseado em agentes do tipo SEIR estendido para a Covid-19, aplicado a quatro áreas urbanas brasileiras com características distintas. A partir de uma implementação serial de referência, desenvolveu-se uma implementação paralela em GPU na qual cada indivíduo da rede é associado a uma thread, preservando-se a lógica do modelo por meio da decomposição da dinâmica em kernels por estado de saúde, da adaptação do gerador de números aleatórios para a execução paralela e do uso de operações atômicas para garantir a consistência do contágio.
 
+A validação mostrou que a implementação em GPU reproduz fielmente os resultados da implementação serial: sob os mesmos parâmetros, as curvas epidêmicas das duas implementações são praticamente indistinguíveis nas quatro cidades, com erro quadrático médio inferior a 1,2 ponto percentual, valor compatível com a flutuação estatística inerente ao método de Monte Carlo. Conclui-se, portanto, que a paralelização preservou o comportamento do modelo.
 
+Quanto ao desempenho, a aceleração obtida pela implementação em GPU cresce com o tamanho da rede, variando de cerca de 1,8 vez para a menor cidade a aproximadamente 56 vezes para São Paulo, a maior delas, cuja simulação passou de quase dez horas em CPU para pouco mais de dez minutos em GPU. A análise do desempenho indicou que a simulação é limitada pela largura de banda de memória, conclusão confirmada de forma independente pela comparação entre duas GPUs distintas; a otimização da estrutura de dados que mantém os acessos aleatórios na memória cache mostrou-se determinante para o ganho obtido nas cidades grandes.
 
+Os resultados indicam que a paralelização em GPU torna viável a simulação de áreas com grandes populações em tempo reduzido, sem comprometer a fidelidade do modelo, o que amplia a aplicabilidade da modelagem baseada em agentes na análise do impacto de epidemias em diferentes regiões.
 
+\section{Trabalhos futuros}
 
-
-
-
-
-
+Como continuidade deste trabalho, diversas direções podem ser exploradas. A política de isolamento social, prevista no modelo, pode ser ativada e estudada como forma de avaliar o efeito de medidas de distanciamento sobre a evolução da epidemia. Do ponto de vista de desempenho, podem-se investigar otimizações adicionais, como o uso da memória compartilhada da GPU e a distribuição da simulação entre múltiplas GPUs, o que permitiria simular áreas ainda maiores. Por fim, o modelo pode ser confrontado com dados reais de incidência e de mortalidade, de modo a calibrar os seus parâmetros e a avaliar a sua capacidade preditiva em cenários concretos.
