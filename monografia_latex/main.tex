@@ -1199,28 +1199,28 @@ Este capítulo apresenta os resultados obtidos seguindo a estratégia estabeleci
 \section{Ambiente computacional}
 \label{sec:ambiente}
 
-Todos os experimentos foram realizados em uma mesma máquina, na qual a implementação serial foi executada em um único núcleo da CPU, servindo de referência, e a implementação paralela foi executada na GPU. A Tabela \ref{tab:hardware} resume as características de hardware das duas plataformas.
+Os experimentos principais foram realizados em uma máquina na qual a implementação serial foi executada em um único núcleo da CPU, servindo de referência, e a implementação paralela foi executada na GPU. A Tabela \ref{tab:hardware} resume as características de hardware das plataformas utilizadas, incluindo a segunda GPU empregada apenas na análise comparativa entre placas.
 
 \begin{table}[H]
 \centering
-\begin{tabular}{|l|c|c|}
+\begin{tabular}{|l|c|c|c|}
 \hline
- & \textbf{CPU (serial)} & \textbf{GPU (paralela)} \\
+ & \textbf{CPU (serial)} & \textbf{GPU principal} & \textbf{GPU (comparação)} \\
 \hline
-Modelo & AMD Ryzen 7 5700X & NVIDIA RTX 4070 SUPER \\
-Arquitetura & Zen 3 & Ada Lovelace (sm\_89) \\
-Núcleos & 8 núcleos / 16 threads & 7168 CUDA cores \\
-Frequência base & 3,4 GHz & --- \\
-Memória & 16 GB DDR4 & 12 GB GDDR6X \\
-Banda de memória & --- & 504 GB/s \\
-Cache L2 & --- & 48 MB \\
+Modelo & AMD Ryzen 7 5700X & RTX 4070 SUPER & GTX 1050 Ti \\
+Arquitetura & Zen 3 & Ada Lovelace (sm\_89) & Pascal (sm\_61) \\
+Núcleos & 8 núcleos / 16 threads & 7168 CUDA cores & 768 CUDA cores \\
+Frequência base & 3,4 GHz & --- & --- \\
+Memória & 16 GB DDR4 & 12 GB GDDR6X & 4 GB GDDR5 \\
+Banda de memória & --- & 504 GB/s & 112 GB/s \\
+Cache L2 & --- & 48 MB & 1 MB \\
 \hline
 \end{tabular}
 \caption{Características de hardware das plataformas utilizadas.}
 \label{tab:hardware}
 \end{table}
 
-Embora a CPU disponha de 8 núcleos, a implementação serial utiliza um único núcleo, de modo a constituir a referência sequencial contra a qual o ganho da paralelização é medido. Ambas as implementações foram compiladas com o compilador nvcc (CUDA 12.6) e otimização ativada, sob o sistema operacional Windows 11. A análise de desempenho entre GPUs distintas (Figura \ref{fig:res_gpus}) utiliza adicionalmente uma GPU NVIDIA GeForce GTX 1050 Ti (arquitetura Pascal, 768 CUDA cores, banda de memória de 112 GB/s).
+Embora a CPU disponha de 8 núcleos, a implementação serial utiliza um único núcleo, de modo a constituir a referência sequencial contra a qual o ganho da paralelização é medido. Ambas as implementações foram compiladas com o compilador nvcc (CUDA 12.6) e otimização ativada, sob o sistema operacional Windows 11. A GPU GTX 1050 Ti, de arquitetura anterior e com largura de banda de memória cerca de quatro vezes menor, é utilizada exclusivamente na análise comparativa entre placas (Figura \ref{fig:res_gpus}), que confirma a natureza limitada por memória da simulação.
 
 \section{Evolução da epidemia nas cidades modeladas}
 
