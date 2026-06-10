@@ -7,7 +7,7 @@
 
 \subsection{Modelos SIR e SEIR}
 
-Para descrever a evolução de uma doença infecciosa em uma população ao longo do tempo, utilizam-se os modelos epidemiológicos compartimentais, nos quais a população é dividida em compartimentos que representam os possíveis estados de cada indivíduo em relação à doença, e a dinâmica da epidemia é descrita pela taxa de transição entre esses compartimentos. O modelo mais elementar é o SIR, no qual a população é dividida em três compartimentos: Suscetíveis (S), aqueles que ainda podem contrair a doença; Infecciosos (I), aqueles que possuem a doença e podem transmiti-la; e Removidos (R), aqueles que se recuperaram ou faleceram e não participam mais da transmissão. Em sua formulação determinística, a evolução de cada compartimento ao longo do tempo é descrita por um sistema de equações diferenciais ordinárias.
+Para descrever a evolução de uma doença infecciosa em uma população ao longo do tempo, utilizam-se os modelos epidemiológicos compartimentais \cite{keeling2008}, nos quais a população é dividida em compartimentos que representam os possíveis estados de cada indivíduo em relação à doença, e a dinâmica da epidemia é descrita pela taxa de transição entre esses compartimentos. O modelo mais elementar é o SIR, no qual a população é dividida em três compartimentos: Suscetíveis (S), aqueles que ainda podem contrair a doença; Infecciosos (I), aqueles que possuem a doença e podem transmiti-la; e Removidos (R), aqueles que se recuperaram ou faleceram e não participam mais da transmissão. Em sua formulação determinística, a evolução de cada compartimento ao longo do tempo é descrita por um sistema de equações diferenciais ordinárias.
 
 \begin{equation}\label{eqn:sir}
     \frac{dS}{dt} = -\beta \frac{S I}{N}, \quad
@@ -45,7 +45,6 @@ Um dos parâmetros mais importantes na caracterização de uma epidemia é o nú
     child { node[fill=orange!45] {} child{node{}} child{node{}} child{node{}} }
     child { node[fill=orange!45] {} child{node{}} child{node{}} child{node{}} };
 \end{tikzpicture}
-\source{O autor.}
 \end{figure}
 
 Cada caso infecta, em média, $R_0$ novos indivíduos; quando $R_0 > 1$, o número de casos cresce a cada geração. Como o número básico de reprodução depende da taxa de transmissão $\beta$, que por sua vez está relacionada à infecciosidade da doença e à forma de contato entre os indivíduos, a infecciosidade $\beta$ do modelo é calibrada de modo que o $R_0$ resultante corresponda ao valor estimado para a Covid-19, adotado neste trabalho como $R_0 = 3{,}5$. O procedimento de calibração da infecciosidade é descrito no Capítulo \ref{Met}.
@@ -53,15 +52,14 @@ Cada caso infecta, em média, $R_0$ novos indivíduos; quando $R_0 > 1$, o núme
 \section{Modelo baseado em agentes (ABM)}
 \label{BD}
 
-Modelos epidemiológicos abrangem diversos tipos de modelos compartimentais, que incluem uma variedade de características, que simulam o comportamento de doenças infecciosas ao longo de um tempo em uma população. O modelo compartimental utilizado será o SEIR, no qual a população é dividida em quatro compartimentos: Suscetíveis (S), representados por aqueles que ainda não adquiriram a doença e podem adquiri-la; Expostos (E), representados por aqueles que já adquiriram a doença, mas estão passando por um estado de latência e não infectam outros indivíduos; Infecciosos (I), aqueles que possuem a doença e infectam outros indivíduos; e Removidos (R), aqueles que, ou se recuperaram da doença, ou faleceram.
+Modelos epidemiológicos abrangem diversos tipos de modelos compartimentais \cite{merrill2010}, que incluem uma variedade de características, que simulam o comportamento de doenças infecciosas ao longo de um tempo em uma população. O modelo compartimental utilizado será o SEIR, no qual a população é dividida em quatro compartimentos: Suscetíveis (S), representados por aqueles que ainda não adquiriram a doença e podem adquiri-la; Expostos (E), representados por aqueles que já adquiriram a doença, mas estão passando por um estado de latência e não infectam outros indivíduos; Infecciosos (I), aqueles que possuem a doença e infectam outros indivíduos; e Removidos (R), aqueles que, ou se recuperaram da doença, ou faleceram.
 
 \begin{figure}[htb]
     \centering
     \caption{Fluxograma do funcionamento geral do programa de simulação.}
     \label{fig:fluxograma_geral}
     \includegraphics[width=0.9\textwidth]{Figures/Flowchart.jpg}
-    \source{O autor.}
-\end{figure}
+    \end{figure}
 
 Em ABM, as unidades que interagem entre si, os agentes, apresentam diversas características como estado de saúde, idade, sexo, taxa de isolamento, entre outras que sejam necessárias para a simulação, e são distribuídos de forma heterogênea em uma rede que representa uma população. A evolução da doença na rede depende de como cada agente interage com sua vizinhança e com outros agentes aleatórios. Em uma rede quadrada, o contato entre os agentes pode ser representado das seguintes formas:
 
@@ -92,7 +90,6 @@ Em ABM, as unidades que interagem entre si, os agentes, apresentam diversas cara
     \node at (1.5,-0.7) {Moore (8 vizinhos)};
   \end{scope}
 \end{tikzpicture}
-\source{O autor.}
 \end{figure}
 
 A célula em destaque representa o agente central e as células sombreadas representam os vizinhos considerados no contato: à esquerda, a vizinhança de Von Neumann, com os 4 vizinhos ortogonais; à direita, a vizinhança de Moore, com os 8 vizinhos adjacentes. Logo, a probabilidade de contágio dependerá da vizinhança e do número de contatos aleatórios, e pode ser representada a partir da seguinte equação.
@@ -114,24 +111,22 @@ Como a transição dos agentes entre os estados de saúde é decidida de forma p
 \caption{Realizações individuais do modelo e a média obtida pelo método de Monte Carlo.}
 \label{fig:montecarlo}
 \includegraphics[width=0.8\textwidth]{Figures/monte_carlo.pdf}
-\source{O autor.}
 \end{figure}
 
-Cada realização da Figura \ref{fig:montecarlo} corresponde a uma execução estocástica do modelo, e a média sobre as 50 simulações fornece a estimativa do comportamento epidêmico. O método de Monte Carlo depende da geração de números aleatórios, entretanto computadores produzem apenas números pseudoaleatórios, gerados de forma determinística a partir de um valor inicial denominado semente, tal que uma mesma semente produz sempre a mesma sequência de números. Em uma implementação serial uma única sequência de números pseudoaleatórios é suficiente, porém em uma implementação paralela a função geradora precisa ser \textit{thread-safe}, uma vez que diversas threads acessam o gerador simultaneamente, e a utilização de uma mesma sequência por todas as threads introduziria correlações indesejadas entre os agentes. Para contornar essa limitação, CUDA disponibiliza a biblioteca cuRAND, que oferece geradores de números pseudoaleatórios apropriados para a execução em paralelo.
+Cada realização da Figura \ref{fig:montecarlo} corresponde a uma execução estocástica do modelo, e a média sobre as 50 simulações fornece a estimativa do comportamento epidêmico. O método de Monte Carlo depende da geração de números aleatórios, entretanto computadores produzem apenas números pseudoaleatórios, gerados de forma determinística a partir de um valor inicial denominado semente, tal que uma mesma semente produz sempre a mesma sequência de números. Em uma implementação serial uma única sequência de números pseudoaleatórios é suficiente, porém em uma implementação paralela a função geradora precisa ser \textit{thread-safe}, uma vez que diversas threads acessam o gerador simultaneamente, e a utilização de uma mesma sequência por todas as threads introduziria correlações indesejadas entre os agentes. Para contornar essa limitação, CUDA disponibiliza a biblioteca cuRAND \cite{nvidia_curand}, que oferece geradores de números pseudoaleatórios apropriados para a execução em paralelo.
 
 \section{Arquitetura de GPUs}
 
 \subsection{Organização dos processadores}
 
-Enquanto CPUs são orientadas para realizar operações mais complexas, mas com baixa latência, GPUs são orientadas para maior \textit{throughput}, realizam operações mais simples, mas processam bastantes tarefas ao mesmo tempo. Essas características tornam CPUs excelentes para tarefas em serial, enquanto GPUs são ótimas para tarefas paralelizáveis. Essa diferença ocorre devido a suas arquiteturas, CPUs têm poucos \textit{cores} que precisam de memória cache para diminuir a latência, enquanto GPUs não se preocupam tanto com latência, então possuem menos transístores para memória cache em benefício de mais transístores que realizarão processamento de tarefas, e, dependendo da família da GPU, centenas e até milhares de \textit{cores} estão presentes.
+Enquanto CPUs são orientadas para realizar operações mais complexas, mas com baixa latência, GPUs são orientadas para maior \textit{throughput}, realizam operações mais simples, mas processam bastantes tarefas ao mesmo tempo. Essas características tornam CPUs excelentes para tarefas em serial, enquanto GPUs são ótimas para tarefas paralelizáveis. Essa diferença ocorre devido a suas arquiteturas, CPUs têm poucos \textit{cores} que precisam de memória cache para diminuir a latência, enquanto GPUs não se preocupam tanto com latência, então possuem menos transístores para memória cache em benefício de mais transístores que realizarão processamento de tarefas, e, dependendo da família da GPU, centenas e até milhares de \textit{cores} estão presentes \cite{cheng2014}.
 
 \begin{figure}[htb]
     \centering
     \caption{Arquitetura de uma CPU e de uma GPU.}
     \label{fig:cpu_gpu}
     \includegraphics[width=0.9\textwidth]{Figures/gpu-devotes-more-transistors-to-data-processing.png}
-    \source{NVIDIA.}
-\end{figure}
+    \end{figure}
 
 GPUs contêm SMs (\textit{streaming multiprocessors}), que contêm CUDA \textit{cores} que realizarão as tarefas, cache L1, memória compartilhada entre os processadores dentro do SM e cache L2. Para obter maior \textit{throughput}, os \textit{cores} nos SMs são SIMT (\textit{single instruction multiple thread}), para cada tarefa necessária, um grupo de 32 \textit{cores} realizará a mesma tarefa, esses grupos são chamados de \textit{warps}, e o processamento das tarefas será sempre realizado pela execução dos \textit{warps}.
 
@@ -152,14 +147,13 @@ Além da grande quantidade de \textit{cores}, o desempenho de um programa execut
   \node[font=\scriptsize, below=1mm of gl] {maior latência $\cdot$ maior capacidade};
   \draw[->, very thick] ($(gl.west)+(-0.6,0)$ |- reg.north) -- ($(gl.west)+(-0.6,0)$ |- gl.south);
 \end{tikzpicture}
-\source{O autor.}
 \end{figure}
 
 O acesso à memória global é mais eficiente quando é coalescido, ou seja, quando threads de uma mesma warp acessam posições contíguas de memória, que podem então ser atendidas em uma única transação. Em diversas aplicações o desempenho não é limitado pela capacidade de processamento, mas pela largura de banda da memória, situação na qual o programa é dito limitado por memória (\textit{memory-bound}), e logo a forma como os dados são estruturados e acessados torna-se determinante para o desempenho. Em particular, estruturas de dados compactas, que reduzem o volume de dados transferidos e permitem que o conjunto de dados em uso seja mantido na memória cache L2, podem proporcionar ganhos expressivos de desempenho.
 
 \section{Modelo de programação em CUDA}
 
-CUDA é uma API (\textit{Application Programming Interface}) que permite a criação de programas em C/C++ em GPUs Nvidia que sejam compatíveis. Em CUDA, o programador cria funções semelhantes às funções de C/C++; essas funções, chamadas de kernels, realizam $N$ tarefas para as $N$ CUDA threads disponíveis na GPU utilizada. Um conjunto de threads é chamado de \textit{block} e um conjunto de \textit{blocks} forma um \textit{grid}, e esses conjuntos podem ter até 3 dimensões, podendo ser identificados com variáveis nativas dadas por \textbf{threadIdx}, \textbf{blockIdx}, \textbf{blockDim} e \textbf{gridDim}. Manipulando essas variáveis, o programador consegue acessar e realizar tarefas para todas as threads.
+CUDA é uma API (\textit{Application Programming Interface}) que permite a criação de programas em C/C++ em GPUs Nvidia que sejam compatíveis \cite{sanders2011}. Em CUDA, o programador cria funções semelhantes às funções de C/C++; essas funções, chamadas de kernels, realizam $N$ tarefas para as $N$ CUDA threads disponíveis na GPU utilizada. Um conjunto de threads é chamado de \textit{block} e um conjunto de \textit{blocks} forma um \textit{grid}, e esses conjuntos podem ter até 3 dimensões, podendo ser identificados com variáveis nativas dadas por \textbf{threadIdx}, \textbf{blockIdx}, \textbf{blockDim} e \textbf{gridDim}. Manipulando essas variáveis, o programador consegue acessar e realizar tarefas para todas as threads.
 
 \begin{figure}[htb]
 \centering
@@ -182,18 +176,16 @@ CUDA é uma API (\textit{Application Programming Interface}) que permite a cria�
   \end{scope}
   \draw[->, thick, dashed] (3.85,1.0) -- (5.75,1.0);
 \end{tikzpicture}
-\source{O autor.}
 \end{figure}
 
-As threads são agrupadas em \textit{blocks} e os \textit{blocks} formam um \textit{grid}, conforme a Figura \ref{fig:gridblock}. Ao desenvolver programas utilizando a arquitetura CUDA, está-se envolvido em uma computação heterogênea, uma vez que o programa faz uso da interação entre a unidade central de processamento (CPU), também conhecida como \textit{host}, e a unidade de processamento gráfico (GPU), denominada \textit{device}. No host, o código é responsável por realizar as tarefas que precisam ser feitas em serial, alocações de memória, copiar os dados da memória da CPU para a GPU e então chamar os kernels para realizar as tarefas no device. Na GPU, cada SM realizará as tarefas por bloco e, após a finalização das execuções, o \textit{host} copia os resultados obtidos da memória da GPU para a CPU. A Figura \ref{cuda} representa como funciona um programa feito em CUDA.
+As threads são agrupadas em \textit{blocks} e os \textit{blocks} formam um \textit{grid}, conforme a Figura \ref{fig:gridblock}. Ao desenvolver programas utilizando a arquitetura CUDA, está-se envolvido em uma computação heterogênea \cite{nvidia_cuda}, uma vez que o programa faz uso da interação entre a unidade central de processamento (CPU), também conhecida como \textit{host}, e a unidade de processamento gráfico (GPU), denominada \textit{device}. No host, o código é responsável por realizar as tarefas que precisam ser feitas em serial, alocações de memória, copiar os dados da memória da CPU para a GPU e então chamar os kernels para realizar as tarefas no device. Na GPU, cada SM realizará as tarefas por bloco e, após a finalização das execuções, o \textit{host} copia os resultados obtidos da memória da GPU para a CPU. A Figura \ref{cuda} representa como funciona um programa feito em CUDA.
 
 \begin{figure}[htb]
     \centering
     \caption{Execução de um programa feito em CUDA.}
     \label{cuda}
     \includegraphics[width=0.5\textwidth]{Figures/heterogeneous-programming.png}
-    \source{NVIDIA.}
-\end{figure}
+    \end{figure}
 
 \section{Métricas de desempenho paralelo}
 
@@ -240,7 +232,6 @@ no qual $f$ é a fração do programa que permanece serial, tal que, à medida q
   \addplot[orange, thick]        {1/(0.50+(1-0.50)/x)}; \addlegendentry{$f=0{,}50$}
 \end{axis}
 \end{tikzpicture}
-\source{O autor.}
 \end{figure}
 
 A aceleração satura no limite $1/f$, evidenciando que a parcela serial do programa limita o ganho máximo, independentemente do número de processadores.

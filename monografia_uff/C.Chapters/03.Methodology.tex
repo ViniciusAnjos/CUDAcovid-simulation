@@ -12,8 +12,7 @@ A modelagem baseada em agentes utilizada será uma modificação do modelo compa
     \caption{Fluxograma do movimento entre estados de saúde.}
     \label{fig:estados_saude}
     \includegraphics[width=0.9\textwidth]{Figures/covid fluxograma.jpg}
-    \source{O autor.}
-\end{figure}
+    \end{figure}
 
 O indivíduo suscetível (X) entra em contato com o vírus e torna-se exposto (E), após o período de incubação torna-se pré-sintomático (P), a replicação do vírus ocorre e o indivíduo ou torna-se assintomático (A) e se recupera da doença, ou a doença evolui e o indivíduo se torna infeccioso, o indivíduo então pode ter sintomas leves ($S_l$), moderados ($S_m$) ou severos ($S_s$), caso não se recupere, será hospitalizado (H) e, em casos mais graves, internado em unidades de tratamento intensivo (UTI); na UTI o indivíduo ou se recupera, ou morre devido à doença.
 
@@ -85,7 +84,6 @@ A transmissão da doença ocorre por dois mecanismos complementares, ambos basea
     \node[font=\footnotesize, align=center] at (0,-1.9) {(b) Infectado busca\\ suscetíveis};
   \end{scope}
 \end{tikzpicture}
-\source{O autor.}
 \end{figure}
 
 Em (a), o indivíduo suscetível verifica a sua vizinhança e os seus contatos aleatórios em busca de infectados; em (b), o indivíduo infectado procura indivíduos suscetíveis entre seus contatos e tenta infectá-los. O segundo mecanismo é executado pelos estados pré-sintomático (P), assintomático (A) e sintomático leve ($S_l$), que representam os indivíduos infecciosos que ainda circulam na população, enquanto os estados sintomático moderado ($S_m$) e severo ($S_s$), por estarem afastados do convívio social, não procuram novos suscetíveis. Para evitar que um mesmo suscetível seja infectado duas vezes no mesmo passo de tempo, uma vez pela sua própria busca e outra por um infectado que o encontrou, utiliza-se um mecanismo de marcação que verifica se o indivíduo já foi contabilizado, garantindo a consistência da atualização.
@@ -98,7 +96,7 @@ Independentemente do estado de saúde, qualquer indivíduo pode sofrer morte nat
 
 \section{Parâmetros}
 
-Para cada cidade a ser utilizada no modelo, a calibração da infecciosidade $\beta$ é necessária para que o valor de $R_0 = 3{,}5$ seja padrão em todas as cidades. É necessário também alterar os parâmetros que são específicos de cada cidade, são eles: tamanho da população, densidade populacional, contatos aleatórios, leitos de hospital e leitos de UTI. A Tabela \ref{tab:area} mostra as características de quatro cidades: São Paulo (SP), Manaus (AM), Brasília (DF) e a favela da Rocinha (RJ).
+Para cada cidade a ser utilizada no modelo, a calibração da infecciosidade $\beta$ é necessária para que o valor de $R_0 = 3{,}5$ seja padrão em todas as cidades. É necessário também alterar os parâmetros que são específicos de cada cidade, são eles: tamanho da população, densidade populacional, contatos aleatórios, leitos de hospital e leitos de UTI, estes últimos obtidos a partir do Cadastro Nacional de Estabelecimentos de Saúde \cite{datasus}. A Tabela \ref{tab:area} mostra as características de quatro cidades: São Paulo (SP), Manaus (AM), Brasília (DF) e a favela da Rocinha (RJ).
 
 \begin{table}[htb]
 \centering
@@ -114,7 +112,6 @@ Brasília  & Baixa & 1604 & 0,00260879 & 0,00040114 & 2 \\
 Manaus    & Baixa & 1343 & 0,00187124 & 0,00027858 & 2 \\
 \hline
 \end{tabular}
-\source{O autor.}
 \end{table}
 
 Já os parâmetros relacionados à doença são comuns a todas as áreas modeladas. A Tabela \ref{tab:dias} mostra a duração, em dias, do período de cada estado de saúde, e a Tabela \ref{tab:prob} mostra a probabilidade de transição entre os estados de saúde.
@@ -137,7 +134,6 @@ $\tau_{H}$    & Hospitalização        & 7--45 \\
 $\tau_{UTI}$  & UTI                   & 10--60 \\
 \hline
 \end{tabular}
-\source{O autor.}
 \end{table}
 
 \begin{table}[htb]
@@ -157,7 +153,6 @@ $P_{(S_s\rightarrow H)}$   & Sintomático severo para hospitalização    & 0,75
 $P_{(S_s\rightarrow UTI)}$ & Sintomático severo para internação em UTI & 0,25 \\
 \hline
 \end{tabular}
-\source{O autor.}
 \end{table}
 
 \section{Estratégia de paralelização e validação}
@@ -185,7 +180,6 @@ Confirmada a equivalência, avalia-se o ganho de desempenho da implementação p
   \draw[->, thick] (gpu) -- (valid);
   \draw[->, thick] (valid) -- (bench);
 \end{tikzpicture}
-\source{O autor.}
 \end{figure}
 
 O mesmo modelo é realizado em duas implementações; a implementação em GPU é validada contra a serial sob os mesmos parâmetros e, confirmada a equivalência, avalia-se o seu desempenho.

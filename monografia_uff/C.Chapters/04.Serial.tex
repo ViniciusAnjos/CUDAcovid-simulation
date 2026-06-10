@@ -44,7 +44,6 @@ A atualização da rede é feita de forma síncrona por meio de um duplo-buffer,
   \draw[->, thick] (func.south west) -- (swap.east) node[midway, below, sloped, font=\scriptsize]{escreve};
   \draw[->, very thick, dashed] (swap.west) -- ++(-1.8,0) |- (health.west) node[pos=0.5, left, align=center, font=\scriptsize]{atualização\\ síncrona};
 \end{tikzpicture}
-\source{O autor.}
 \end{figure}
 
 Durante a varredura, as funções de estado leem o estado atual em \texttt{Health} e escrevem o próximo estado em \texttt{Swap}; ao final do passo, \texttt{Swap} é copiado para \texttt{Health}, de modo que todas as transições de um passo são aplicadas simultaneamente.

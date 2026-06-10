@@ -60,7 +60,6 @@ Os mecanismos de contágio percorrem, para cada indivíduo, diversos contatos al
   \node[anchor=west, font=\footnotesize] at (-1.15,1.05) {\texttt{population[]}: \texttt{GPUPerson} com 13 campos ($\approx$ 52 bytes/célula)};
   \node[anchor=west, font=\footnotesize] at (-1.15,-3.1) {\texttt{d\_HealthC[]}: apenas \texttt{Health} (1 byte/célula) --- cabe na cache L2};
 \end{tikzpicture}
-\source{O autor.}
 \end{figure}
 
 O vetor completo \texttt{population[]} armazena todos os campos de cada indivíduo; o vetor compacto \texttt{d\_HealthC[]} replica apenas o campo \texttt{Health}, de modo que os acessos aleatórios dos mecanismos de contágio percorrem um vetor pequeno o suficiente para permanecer na cache L2.
