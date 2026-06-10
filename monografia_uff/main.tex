@@ -111,7 +111,7 @@
 % ----------------------------------------------------------ENGENHARIA
 % Capa e a folha de rosto
 % ----------------------------------------------------------
-\capa % use \capa* para ir para o seguundo modelo de capa
+%\capa % capa removida por enquanto (descomentar quando finalizar)
 \folhaderosto
 % ----------------------------------------------------------
 % Inserir a ficha catalográfica
@@ -126,47 +126,21 @@
 % ---
 % \includepdf[noautoscale, pagecommand={}]{B.PreTextual/Ficha.pdf} % Substituir o arquivo ficha.pdf pela sua ficha catalográfica
 
-\include{B.PreTextual/ficha}
+%\include{B.PreTextual/ficha} % ficha catalografica pendente (Biblioteca BAVR)
 
+% --- Folha de aprovacao (banca), dedicatoria, agradecimentos e epigrafe ---
+% --- removidos por enquanto; descomentar quando definidos ---
+% \newcommand{\spc}{0.25cm}
+% \begin{folhadeaprovacao}
+% 	\vspace{\spc}
+% 	\assinatura{Prof. Dr. Nome}{instituição}
+% 	\vspace{\spc}
+% 	\assinatura{Prof. Dr. Nome}{instituição}
+% \end{folhadeaprovacao}
 
-
-% ----------------------------------------------------------
-% Folha de aprovação
-% ----------------------------------------------------------
-
-%Após obter a assinatura dos membros da banca, comente as linhas a baixos e insira o pdf com as assinaturas na pasta "B.PreTextual"
-
-
-% Ajustar o espaço entre as assinaturas abaixo
-\newcommand{\spc}{0.25cm}
-
-\begin{folhadeaprovacao}
-	\vspace{\spc} % Espaço entre assinaturas
-	\assinatura{Prof(a). Dr(a). Nome }{instituição } %Exemplo
- 	\vspace{\spc} % Espaço entre assinaturas
-\assinatura{Prof(a). Dr(a). Nome }{instituição } %Exemplo
-% 	\vspace{\spc} % Espaço entre assinaturas
-% 	\assinatura{Eng. Marcos João, B.Sc.}{Instituição}
-% 	\vspace{\spc} % Espaço entre assinaturas
-% 	\assinatura{quarto membro titular da banca}{Instituição}
-\end{folhadeaprovacao}
-
-
-% Após colocar o pdf com as assinaturas na pasta "B.PreTextual", comente todo o ambiente "folhadeaprovacao" acima, descomente a linha abaixo e insira o nome correto do arquivo pdf:
-%\includepdf[pages=1]{B.PreTextual/ficha.pdf} %exemplo
-
-
-% ----------------------------------------------------------
-% Dedicatória
-\include{B.PreTextual/01.Dedication}
-
-% ----------------------------------------------------------
-% Agradecimentos
-\include{B.PreTextual/02.Acknowledgment}
-
-% ----------------------------------------------------------
-% Epigrafe (opcional)
-\include{B.PreTextual/03.Epigraph}
+%\include{B.PreTextual/01.Dedication}
+%\include{B.PreTextual/02.Acknowledgment}
+%\include{B.PreTextual/03.Epigraph}
 
 % ----------------------------------------------------------
 %% RESUMO
