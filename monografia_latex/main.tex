@@ -1194,7 +1194,33 @@ __global__ void update_kernel(GPUPerson* population, unsigned int* rngStates,
 \chapter{Resultados e Discussão}
 \label{cap:resultados}
 
-Este capítulo apresenta os resultados obtidos seguindo a estratégia estabelecida na Seção \ref{Met}: primeiro, caracteriza-se a evolução da epidemia produzida pelo modelo nas quatro cidades; em seguida, valida-se a implementação em GPU comparando-a com a serial sob os mesmos parâmetros; e, por fim, avalia-se o ganho de desempenho da paralelização. Os resultados foram obtidos com $\text{MAXSIM} = 50$ simulações por cidade, ao longo de 400 dias, utilizando uma GPU NVIDIA RTX 4070 SUPER.
+Este capítulo apresenta os resultados obtidos seguindo a estratégia estabelecida na Seção \ref{Met}: primeiro, caracteriza-se a evolução da epidemia produzida pelo modelo nas quatro cidades; em seguida, valida-se a implementação em GPU comparando-a com a serial sob os mesmos parâmetros; e, por fim, avalia-se o ganho de desempenho da paralelização. Os resultados foram obtidos com $\text{MAXSIM} = 50$ simulações por cidade, ao longo de 400 dias. O ambiente computacional utilizado nos experimentos é descrito na Seção \ref{sec:ambiente}.
+
+\section{Ambiente computacional}
+\label{sec:ambiente}
+
+Todos os experimentos foram realizados em uma mesma máquina, na qual a implementação serial foi executada em um único núcleo da CPU, servindo de referência, e a implementação paralela foi executada na GPU. A Tabela \ref{tab:hardware} resume as características de hardware das duas plataformas.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|}
+\hline
+ & \textbf{CPU (serial)} & \textbf{GPU (paralela)} \\
+\hline
+Modelo & AMD Ryzen 7 5700X & NVIDIA RTX 4070 SUPER \\
+Arquitetura & Zen 3 & Ada Lovelace (sm\_89) \\
+Núcleos & 8 núcleos / 16 threads & 7168 CUDA cores \\
+Frequência base & 3,4 GHz & --- \\
+Memória & 16 GB DDR4 & 12 GB GDDR6X \\
+Banda de memória & --- & 504 GB/s \\
+Cache L2 & --- & 48 MB \\
+\hline
+\end{tabular}
+\caption{Características de hardware das plataformas utilizadas.}
+\label{tab:hardware}
+\end{table}
+
+Embora a CPU disponha de 8 núcleos, a implementação serial utiliza um único núcleo, de modo a constituir a referência sequencial contra a qual o ganho da paralelização é medido. Ambas as implementações foram compiladas com o compilador nvcc (CUDA 12.6) e otimização ativada, sob o sistema operacional Windows 11. A análise de desempenho entre GPUs distintas (Figura \ref{fig:res_gpus}) utiliza adicionalmente uma GPU NVIDIA GeForce GTX 1050 Ti (arquitetura Pascal, 768 CUDA cores, banda de memória de 112 GB/s).
 
 \section{Evolução da epidemia nas cidades modeladas}
 
@@ -1316,7 +1342,7 @@ Esse predomínio dos acessos aleatórios à memória indica que a simulação é
 \label{fig:res_healthsoa}
 \end{figure}
 
-Uma confirmação independente de que a simulação é limitada por memória é obtida comparando-se o desempenho em duas GPUs distintas, conforme a Figura \ref{fig:res_gpus}. Executando o mesmo código nas duas placas, a razão entre os tempos nas cidades grandes aproxima-se da razão entre as larguras de banda de memória das GPUs ($4{,}5\times$), e não da razão entre as suas capacidades de cálculo em ponto flutuante ($17\times$); ou seja, o desempenho acompanha a banda de memória, e não o poder de cálculo, o que caracteriza um problema limitado por memória.
+Uma confirmação independente de que a simulação é limitada por memória é obtida comparando-se o desempenho em duas GPUs distintas, a RTX 4070 SUPER e uma GTX 1050 Ti, conforme a Figura \ref{fig:res_gpus}. Executando o mesmo código nas duas placas, a razão entre os tempos nas cidades grandes aproxima-se da razão entre as larguras de banda de memória das GPUs (504 GB/s e 112 GB/s, uma razão de $4{,}5\times$), e não da razão entre as suas capacidades de cálculo em ponto flutuante ($17\times$); ou seja, o desempenho acompanha a banda de memória, e não o poder de cálculo, o que caracteriza um problema limitado por memória.
 
 \begin{figure}[H]
 \centering
