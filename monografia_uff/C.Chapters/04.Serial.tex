@@ -32,7 +32,7 @@ A rede é declarada como uma matriz \texttt{Person[L+2][L+2]}, na qual as duas l
 
 A atualização da rede é feita de forma síncrona por meio de um duplo-buffer, no qual os campos \texttt{Health} e \texttt{Swap} desempenham papéis complementares. Durante a varredura da rede, as funções de estado leem o estado atual de cada indivíduo em \texttt{Health} e escrevem o seu próximo estado em \texttt{Swap}, sem alterar \texttt{Health}; somente ao final do passo o conteúdo de \texttt{Swap} é copiado para \texttt{Health}. Assim, garante-se que a atualização de um indivíduo não interfira no cálculo dos demais no mesmo passo, conforme ilustra a Figura \ref{fig:duplobuffer}.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \centering
 \caption{Duplo-buffer da atualização síncrona.}
 \label{fig:duplobuffer}

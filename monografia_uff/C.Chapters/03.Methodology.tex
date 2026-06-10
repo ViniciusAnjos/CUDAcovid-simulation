@@ -7,7 +7,7 @@
 
 A modelagem baseada em agentes utilizada será uma modificação do modelo compartimental SEIR; os indivíduos podem ter os seguintes estados de saúde: suscetíveis (X), expostos (E), pré-sintomáticos (P), assintomáticos (A), sintomático leve ($S_l$), sintomático moderado ($S_m$), sintomático severo ($S_s$), hospitalizado (H), internados na UTI (UTI), recuperados (R) e mortos (M). A Figura \ref{fig:estados_saude} demonstra como ocorrem os possíveis movimentos dentre os estados de saúde.
 
-\begin{figure}[htb]
+\begin{figure}[H]
     \centering
     \caption{Fluxograma do movimento entre estados de saúde.}
     \label{fig:estados_saude}
@@ -51,7 +51,7 @@ calcula a média das curvas sobre todas as simulações\;
 
 A transmissão da doença ocorre por dois mecanismos complementares, ambos baseados na probabilidade de contágio dada pela Equação \ref{eqn:prob}. No primeiro mecanismo, cada indivíduo suscetível verifica a sua vizinhança e os seus contatos aleatórios, cujo número varia conforme a cidade, em busca de indivíduos infectados; o número de infectados encontrados, $n$, determina a probabilidade $P = 1 - (1 - \beta)^n$ de o suscetível ser infectado. No segundo mecanismo, cada indivíduo infectado, enquanto se encontra no período infeccioso, procura indivíduos suscetíveis entre seus contatos e tenta infectá-los, também de acordo com a probabilidade de contágio.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \centering
 \caption{Os dois mecanismos de contágio do modelo.}
 \label{fig:contagio}
@@ -98,7 +98,7 @@ Independentemente do estado de saúde, qualquer indivíduo pode sofrer morte nat
 
 Para cada cidade a ser utilizada no modelo, a calibração da infecciosidade $\beta$ é necessária para que o valor de $R_0 = 3{,}5$ seja padrão em todas as cidades. É necessário também alterar os parâmetros que são específicos de cada cidade, são eles: tamanho da população, densidade populacional, contatos aleatórios, leitos de hospital e leitos de UTI, estes últimos obtidos a partir do Cadastro Nacional de Estabelecimentos de Saúde \cite{datasus}. A Tabela \ref{tab:area} mostra as características de quatro cidades: São Paulo (SP), Manaus (AM), Brasília (DF) e a favela da Rocinha (RJ).
 
-\begin{table}[htb]
+\begin{table}[H]
 \centering
 \caption{Parâmetros de quatro diferentes áreas do Brasil.}
 \label{tab:area}
@@ -116,7 +116,7 @@ Manaus    & Baixa & 1343 & 0,00187124 & 0,00027858 & 2 \\
 
 Já os parâmetros relacionados à doença são comuns a todas as áreas modeladas. A Tabela \ref{tab:dias} mostra a duração, em dias, do período de cada estado de saúde, e a Tabela \ref{tab:prob} mostra a probabilidade de transição entre os estados de saúde.
 
-\begin{table}[htb]
+\begin{table}[H]
 \centering
 \caption{Parâmetros de duração de cada estado de saúde.}
 \label{tab:dias}
@@ -136,7 +136,7 @@ $\tau_{UTI}$  & UTI                   & 10--60 \\
 \end{tabular}
 \end{table}
 
-\begin{table}[htb]
+\begin{table}[H]
 \centering
 \caption{Probabilidades de transição entre estados de saúde.}
 \label{tab:prob}
@@ -163,7 +163,7 @@ Para que a paralelização seja considerada bem-sucedida, não basta que seja ma
 
 Confirmada a equivalência, avalia-se o ganho de desempenho da implementação paralela. A avaliação é feita medindo-se a aceleração, definida no Capítulo \ref{FT} como a razão entre o tempo de execução da implementação serial e o da implementação paralela, e a eficiência correspondente, para cada cidade. Como as cidades possuem tamanhos de rede distintos, essa avaliação permite ainda observar como o ganho de desempenho varia com o tamanho do problema. A Figura \ref{fig:estrategia} resume a estratégia do trabalho.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \centering
 \caption{Estratégia do trabalho.}
 \label{fig:estrategia}

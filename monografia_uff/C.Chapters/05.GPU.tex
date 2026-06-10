@@ -47,7 +47,7 @@ __device__ unsigned char* d_HealthC;
 
 Os mecanismos de contágio percorrem, para cada indivíduo, diversos contatos aleatórios espalhados pela rede, lendo de cada um apenas o seu estado de saúde. Como cada estrutura completa ocupa aproximadamente 52 bytes, esses acessos aleatórios a posições distantes da memória são pouco eficientes e, para redes grandes, ultrapassam a capacidade da cache. Para contornar essa limitação, mantém-se um vetor compacto que replica apenas o campo de estado de saúde, com um byte por célula, conforme ilustra a Figura \ref{fig:healthsoa}. Os mecanismos de contágio leem desse vetor compacto, de modo que o conjunto de dados percorrido pelos acessos aleatórios é pequeno o suficiente para permanecer na cache L2 (Capítulo \ref{FT}), o que reduz o tempo gasto com acesso à memória, fator determinante para o desempenho. O vetor compacto é mantido sincronizado com o estado de saúde ao final de cada atualização.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \centering
 \caption{Otimização da estrutura de Health.}
 \label{fig:healthsoa}

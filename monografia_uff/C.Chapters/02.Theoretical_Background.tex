@@ -32,7 +32,7 @@ no qual $\sigma$ é a taxa de progressão do estado exposto para o estado infecc
 
 Um dos parâmetros mais importantes na caracterização de uma epidemia é o número básico de reprodução, denotado por $R_0$, definido como o número médio de indivíduos que um único caso infecta diretamente em uma população completamente suscetível. O valor de $R_0$ determina o comportamento inicial da epidemia, uma vez que, quando $R_0 < 1$, cada caso gera em média menos de um novo caso e a doença tende a se extinguir, enquanto, quando $R_0 > 1$, cada caso gera mais de um novo caso e a epidemia se espalha pela população. Nos modelos compartimentais o número básico de reprodução pode ser obtido a partir dos parâmetros da doença; no modelo SIR, por exemplo, $R_0 = \beta / \gamma$, tal que a razão entre a taxa de transmissão e a taxa de recuperação determina o potencial de espalhamento da doença.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \centering
 \caption{Ilustração do número básico de reprodução.}
 \label{fig:r0}
@@ -54,7 +54,7 @@ Cada caso infecta, em média, $R_0$ novos indivíduos; quando $R_0 > 1$, o núme
 
 Modelos epidemiológicos abrangem diversos tipos de modelos compartimentais \cite{merrill2010}, que incluem uma variedade de características, que simulam o comportamento de doenças infecciosas ao longo de um tempo em uma população. O modelo compartimental utilizado será o SEIR, no qual a população é dividida em quatro compartimentos: Suscetíveis (S), representados por aqueles que ainda não adquiriram a doença e podem adquiri-la; Expostos (E), representados por aqueles que já adquiriram a doença, mas estão passando por um estado de latência e não infectam outros indivíduos; Infecciosos (I), aqueles que possuem a doença e infectam outros indivíduos; e Removidos (R), aqueles que, ou se recuperaram da doença, ou faleceram.
 
-\begin{figure}[htb]
+\begin{figure}[H]
     \centering
     \caption{Fluxograma do funcionamento geral do programa de simulação.}
     \label{fig:fluxograma_geral}
@@ -69,23 +69,23 @@ Em ABM, as unidades que interagem entre si, os agentes, apresentam diversas cara
     \item Contatos aleatórios.
 \end{itemize}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \centering
 \caption{Vizinhanças em uma rede quadrada.}
 \label{fig:vizinhancas}
 \begin{tikzpicture}[scale=0.75, font=\small]
   \begin{scope}
-    \fill[gray!35] (1,2) rectangle ++(1,1);
-    \fill[gray!35] (0,1) rectangle ++(1,1);
-    \fill[gray!35] (2,1) rectangle ++(1,1);
-    \fill[gray!35] (1,0) rectangle ++(1,1);
-    \fill[black!65] (1,1) rectangle ++(1,1);
+    \fill[blue!30] (1,2) rectangle ++(1,1);
+    \fill[blue!30] (0,1) rectangle ++(1,1);
+    \fill[blue!30] (2,1) rectangle ++(1,1);
+    \fill[blue!30] (1,0) rectangle ++(1,1);
+    \fill[red!70] (1,1) rectangle ++(1,1);
     \foreach \x in {0,1,2} \foreach \y in {0,1,2} { \draw (\x,\y) rectangle ++(1,1); }
     \node at (1.5,-0.7) {Von Neumann (4 vizinhos)};
   \end{scope}
   \begin{scope}[xshift=5.5cm]
-    \foreach \x in {0,1,2} \foreach \y in {0,1,2} { \fill[gray!35] (\x,\y) rectangle ++(1,1); }
-    \fill[black!65] (1,1) rectangle ++(1,1);
+    \foreach \x in {0,1,2} \foreach \y in {0,1,2} { \fill[blue!30] (\x,\y) rectangle ++(1,1); }
+    \fill[red!70] (1,1) rectangle ++(1,1);
     \foreach \x in {0,1,2} \foreach \y in {0,1,2} { \draw (\x,\y) rectangle ++(1,1); }
     \node at (1.5,-0.7) {Moore (8 vizinhos)};
   \end{scope}
@@ -106,7 +106,7 @@ A dinâmica descrita, na qual cada agente ocupa uma posição fixa em uma rede r
 
 Como a transição dos agentes entre os estados de saúde é decidida de forma probabilística, cada simulação do modelo corresponde a uma única realização do processo estocástico, e logo o resultado de uma simulação isolada não é representativo do comportamento médio da epidemia. Para obter uma estimativa confiável da evolução da doença, utiliza-se o método de Monte Carlo, no qual o modelo é simulado um grande número de vezes de forma independente, e as curvas de prevalência e incidência são obtidas a partir da média sobre todas as simulações realizadas. Quanto maior o número de simulações, menor a flutuação estatística em torno do comportamento médio, uma vez que os desvios de cada realização individual tendem a se compensar.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \centering
 \caption{Realizações individuais do modelo e a média obtida pelo método de Monte Carlo.}
 \label{fig:montecarlo}
@@ -121,7 +121,7 @@ Cada realização da Figura \ref{fig:montecarlo} corresponde a uma execução es
 
 Enquanto CPUs são orientadas para realizar operações mais complexas, mas com baixa latência, GPUs são orientadas para maior \textit{throughput}, realizam operações mais simples, mas processam bastantes tarefas ao mesmo tempo. Essas características tornam CPUs excelentes para tarefas em serial, enquanto GPUs são ótimas para tarefas paralelizáveis. Essa diferença ocorre devido a suas arquiteturas, CPUs têm poucos \textit{cores} que precisam de memória cache para diminuir a latência, enquanto GPUs não se preocupam tanto com latência, então possuem menos transístores para memória cache em benefício de mais transístores que realizarão processamento de tarefas, e, dependendo da família da GPU, centenas e até milhares de \textit{cores} estão presentes \cite{cheng2014}.
 
-\begin{figure}[htb]
+\begin{figure}[H]
     \centering
     \caption{Arquitetura de uma CPU e de uma GPU.}
     \label{fig:cpu_gpu}
@@ -134,7 +134,7 @@ GPUs contêm SMs (\textit{streaming multiprocessors}), que contêm CUDA \textit{
 
 Além da grande quantidade de \textit{cores}, o desempenho de um programa executado em GPU depende fortemente da forma como os dados são acessados na memória, organizada em uma hierarquia de níveis com diferentes capacidades e latências. No nível mais próximo dos \textit{cores} estão os registradores, privados de cada thread e de acesso mais rápido; em seguida está a memória compartilhada, acessível por todas as threads de um mesmo bloco e localizada dentro do SM, de baixa latência; e, no nível mais distante, está a memória global, de maior capacidade, porém de maior latência, na qual residem os dados copiados do \textit{host} para o \textit{device}. Entre a memória global e os SMs encontram-se ainda as memórias cache L1, privada de cada SM, e L2, compartilhada entre todos os SMs, que armazenam os dados acessados recentemente com o intuito de reduzir o número de acessos à memória global.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \centering
 \caption{Hierarquia de memória de uma GPU.}
 \label{fig:memoria}
@@ -155,7 +155,7 @@ O acesso à memória global é mais eficiente quando é coalescido, ou seja, qua
 
 CUDA é uma API (\textit{Application Programming Interface}) que permite a criação de programas em C/C++ em GPUs Nvidia que sejam compatíveis \cite{sanders2011}. Em CUDA, o programador cria funções semelhantes às funções de C/C++; essas funções, chamadas de kernels, realizam $N$ tarefas para as $N$ CUDA threads disponíveis na GPU utilizada. Um conjunto de threads é chamado de \textit{block} e um conjunto de \textit{blocks} forma um \textit{grid}, e esses conjuntos podem ter até 3 dimensões, podendo ser identificados com variáveis nativas dadas por \textbf{threadIdx}, \textbf{blockIdx}, \textbf{blockDim} e \textbf{gridDim}. Manipulando essas variáveis, o programador consegue acessar e realizar tarefas para todas as threads.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \centering
 \caption{Hierarquia de execução em CUDA.}
 \label{fig:gridblock}
@@ -180,7 +180,7 @@ CUDA é uma API (\textit{Application Programming Interface}) que permite a cria�
 
 As threads são agrupadas em \textit{blocks} e os \textit{blocks} formam um \textit{grid}, conforme a Figura \ref{fig:gridblock}. Ao desenvolver programas utilizando a arquitetura CUDA, está-se envolvido em uma computação heterogênea \cite{nvidia_cuda}, uma vez que o programa faz uso da interação entre a unidade central de processamento (CPU), também conhecida como \textit{host}, e a unidade de processamento gráfico (GPU), denominada \textit{device}. No host, o código é responsável por realizar as tarefas que precisam ser feitas em serial, alocações de memória, copiar os dados da memória da CPU para a GPU e então chamar os kernels para realizar as tarefas no device. Na GPU, cada SM realizará as tarefas por bloco e, após a finalização das execuções, o \textit{host} copia os resultados obtidos da memória da GPU para a CPU. A Figura \ref{cuda} representa como funciona um programa feito em CUDA.
 
-\begin{figure}[htb]
+\begin{figure}[H]
     \centering
     \caption{Execução de um programa feito em CUDA.}
     \label{cuda}
@@ -211,7 +211,7 @@ A aceleração que pode ser obtida, entretanto, é limitada pela fração do pro
 
 no qual $f$ é a fração do programa que permanece serial, tal que, à medida que o número de unidades de processamento $p$ aumenta, a aceleração tende ao limite $1/f$, e logo a parcela serial do programa determina o ganho máximo que pode ser alcançado, independentemente da quantidade de \textit{cores} disponíveis. Em GPUs, nas quais milhares de threads são executadas simultaneamente, a aceleração é frequentemente medida de forma empírica, comparando-se diretamente o tempo de execução da implementação paralela com o da implementação serial de referência.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \centering
 \caption{Lei de Amdahl para diferentes frações seriais $f$.}
 \label{fig:amdahl}
